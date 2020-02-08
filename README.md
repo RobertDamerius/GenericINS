@@ -17,6 +17,7 @@ The earth's rotation is also taken into account.
 
 **Easy to extend with additional sensors**<br>
 Thanks to a sigma-point Kalman filter, (non)-linear measurement models can easily be added.
+An automatic code generation feature allows the fast creation of embedded MATLAB functions for the fusion of position, velocity, and orientation sensors.
 
 **Different sensor sampling rates**<br>
 Due to the sequential sensor method, sensor data are processed one after the other and only when they have been received.
