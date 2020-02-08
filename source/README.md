@@ -1,10 +1,10 @@
 # Overview
 The Generic Inertial Navigation System (INS) uses a square-root spherical simplex unscented Kalman filter (SRSSUKF) to estimate the navigation state.
 `SRSSUKF.m` is a MATLAB class implementation of the SRSSUKF that can be used for any state estimation problem.
-The actual Generic INS is implemented in the MATLAB class `GenericINS.m`. This class reimplements the SRSSUKF algorithm for the Generic INS problem,
-that is, the SRSSUKF MATLAB class is not required but it is left in the source directory.
+The actual Generic INS is implemented in the MATLAB class `GenericINS.m`. This class re-implements the SRSSUKF algorithm for the Generic INS problem,
+that is, the SRSSUKF MATLAB class is not required but it is preserved in the source directory for completeness.
 
-The generic estimate the state vector containing:
+The GenericINS estimate the state vector containing:
 - geographic position (latitude, longitude, altitude)
 - velocity in north, east and down direction
 - orientation (unit quaternion)
@@ -52,7 +52,7 @@ GenericINS.GenerateFunction(functionName, positionMeasurements, velocityMeasurem
 ```
 The generated function includes a documentation (comment) that helps you to understand all input and output arguments.
 
-Note that an IMU is essential as these intertial measurements are required to predict the movement of the vehicle.
+Note that an IMU is essential as these intertial measurements are required to predict the movement.
 Additional sensor measurements can only be processed in sequential updates if a state prediction has been made beforehand.
 The generated function uses an internal buffer to store the latest sensor data.
 A prediction step is only performed when a new IMU measurement has been received.
