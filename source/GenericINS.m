@@ -60,7 +60,7 @@ classdef GenericINS < handle
             docs = [docs '    %%                              3: altitude     [m]       Initial altitude of the position of the IMU, positive upwards.\n'];
             docs = [docs '    %%                              4: velocityU    [m/s]     Initial body-fixed velocity in x-direction of the body-frame at the position of the IMU.\n'];
             docs = [docs '    %%                              5: velocityV    [m/s]     Initial body-fixed velocity in y-direction of the body-frame at the position of the IMU.\n'];
-            docs = [docs '    %%                              6: velocityR    [m/s]     Initial body-fixed velocity in z-direction of the body-frame at the position of the IMU.\n'];
+            docs = [docs '    %%                              6: velocityW    [m/s]     Initial body-fixed velocity in z-direction of the body-frame at the position of the IMU.\n'];
             docs = [docs '    %%                              7: roll         [rad]     Initial roll angle.\n'];
             docs = [docs '    %%                              8: pitch        [rad]     Initial pitch angle.\n'];
             docs = [docs '    %%                              9: yaw          [rad]     Initial yaw angle.\n'];
@@ -76,8 +76,8 @@ classdef GenericINS < handle
             docs = [docs '    %%                              2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
             docs = [docs '    %%                              3: altitude     [m]       Initial standard deviation for initial altitude.\n'];
             docs = [docs '    %%                              4: velocityU    [m/s]     Initial standard deviation for initial body-fixed velocity in x-direction of the body-frame.\n'];
-            docs = [docs '    %%                              5: velocityU    [m/s]     Initial standard deviation for initial body-fixed velocity in y-direction of the body-frame.\n'];
-            docs = [docs '    %%                              6: velocityU    [m/s]     Initial standard deviation for initial body-fixed velocity in z-direction of the body-frame.\n'];
+            docs = [docs '    %%                              5: velocityV    [m/s]     Initial standard deviation for initial body-fixed velocity in y-direction of the body-frame.\n'];
+            docs = [docs '    %%                              6: velocityW    [m/s]     Initial standard deviation for initial body-fixed velocity in z-direction of the body-frame.\n'];
             docs = [docs '    %%                              7: orientationX           Initial standard deviation for x-component of orientation vector (axis-angle representation).\n'];
             docs = [docs '    %%                              8: orientationY           Initial standard deviation for y-component of orientation vector (axis-angle representation).\n'];
             docs = [docs '    %%                              9: orientationZ           Initial standard deviation for z-component of orientation vector (axis-angle representation).\n'];
@@ -329,17 +329,17 @@ classdef GenericINS < handle
                 end
             end
         end
-        function Initialize(obj, initialPositionLLA, initialVelocityUVR, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVR, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, stdAcc, stdGyr, stdAccBias, stdGyrBias)
+        function Initialize(obj, initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, stdAcc, stdGyr, stdAccBias, stdGyrBias)
             %GenericINS.Initialize Initialize or re-initialize the INS.
             % 
             % PARAMETERS
             % initialPositionLLA             ... Initial geographic position at the location of the IMU, [lat (rad); lon (rad); alt (m, positive upwards)].
-            % initialVelocityUVR             ... Initial body-fixed velocity at the location of the IMU, [u (m/s); v (m/s); r (m/s)].
+            % initialVelocityUVW             ... Initial body-fixed velocity at the location of the IMU, [u (m/s); v (m/s); r (m/s)].
             % initialOrientationRollPitchYaw ... Initial orientation of the body frame, [roll (rad); pitch (rad); yaw (rad)].
             % initialBiasAcc                 ... Initial acceleration bias in m/s^2.
             % initialBiasGyr                 ... Initial angular rate bias in rad/s.
             % initialStdPositionLLA          ... Initial standard deviation for the geographic position. Should be an estimate of the standard deviation of initialPositionLLA.
-            % initialStdVelocityUVR          ... Initial standard deviation for the body-fixed velocity. Should be an estimate of the standard deviation of initialVelocityUVR.
+            % initialStdVelocityUVW          ... Initial standard deviation for the body-fixed velocity. Should be an estimate of the standard deviation of initialVelocityUVW.
             % initialStdOrientationVector    ... Initial standard deviation for the orientation vector (axis-angle).
             % initialStdBiasAcc              ... Initial standard deviation for acceleration bias.
             % initialStdBiasGyr              ... Initial standard deviation for angular rate bias.
@@ -348,12 +348,12 @@ classdef GenericINS < handle
             % stdAccBias                     ... Standard deviation for acceleration bias in m/s^2 to be used for motion prediction.
             % stdGyrBias                     ... Standard deviation for angular rate bias in rad/s to be used for motion prediction.
             assert((3 == size(initialPositionLLA,1)) && (1 == size(initialPositionLLA,2)) && isa(initialPositionLLA, 'double'), 'GenericINS.Initialize(): "initialPositionLLA" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialVelocityUVR,1)) && (1 == size(initialVelocityUVR,2)) && isa(initialVelocityUVR, 'double'), 'GenericINS.Initialize(): "initialVelocityUVR" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialVelocityUVW,1)) && (1 == size(initialVelocityUVW,2)) && isa(initialVelocityUVW, 'double'), 'GenericINS.Initialize(): "initialVelocityUVW" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialOrientationRollPitchYaw,1)) && (1 == size(initialOrientationRollPitchYaw,2)) && isa(initialOrientationRollPitchYaw, 'double'), 'GenericINS.Initialize(): "initialOrientationRollPitchYaw" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialBiasAcc,1)) && (1 == size(initialBiasAcc,2)) && isa(initialBiasAcc, 'double'), 'GenericINS.Initialize(): "initialBiasAcc" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialBiasGyr,1)) && (1 == size(initialBiasGyr,2)) && isa(initialBiasGyr, 'double'), 'GenericINS.Initialize(): "initialBiasGyr" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdPositionLLA,1)) && (1 == size(initialStdPositionLLA,2)) && isa(initialStdPositionLLA, 'double'), 'GenericINS.Initialize(): "initialStdPositionLLA" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdVelocityUVR,1)) && (1 == size(initialStdVelocityUVR,2)) && isa(initialStdVelocityUVR, 'double'), 'GenericINS.Initialize(): "initialStdVelocityUVR" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdVelocityUVW,1)) && (1 == size(initialStdVelocityUVW,2)) && isa(initialStdVelocityUVW, 'double'), 'GenericINS.Initialize(): "initialStdVelocityUVW" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdOrientationVector,1)) && (1 == size(initialStdOrientationVector,2)) && isa(initialStdOrientationVector, 'double'), 'GenericINS.Initialize(): "initialStdOrientationVector" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdBiasAcc,1)) && (1 == size(initialStdBiasAcc,2)) && isa(initialStdBiasAcc, 'double'), 'GenericINS.Initialize(): "initialStdBiasAcc" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdBiasGyr,1)) && (1 == size(initialStdBiasGyr,2)) && isa(initialStdBiasGyr, 'double'), 'GenericINS.Initialize(): "initialStdBiasGyr" must be a 3-by-1 vector of type double!');
@@ -382,14 +382,14 @@ classdef GenericINS < handle
 
             % Initial velocity
             DCM_b2n = GenericINS.Cb2n(obj.x(7:10));
-            obj.x(4:6) = DCM_b2n * initialVelocityUVR;
+            obj.x(4:6) = DCM_b2n * initialVelocityUVW;
 
             % Initial inertial biases
             obj.x(11:13) = initialBiasAcc;
             obj.x(14:16) = initialBiasGyr;
 
             % Initial square root covariance matrix
-            obj.S = diag([initialStdPositionLLA; DCM_b2n * initialStdVelocityUVR; initialStdOrientationVector; initialStdBiasAcc; initialStdBiasGyr; stdAcc; stdGyr; stdAccBias; stdGyrBias]);
+            obj.S = diag([initialStdPositionLLA; DCM_b2n * initialStdVelocityUVW; initialStdOrientationVector; initialStdBiasAcc; initialStdBiasGyr; stdAcc; stdGyr; stdAccBias; stdGyrBias]);
 
             % Initialize additional INS properties
             [obj.omegaEarth, obj.Rn, obj.Re, R0] = GenericINS.WGS84(obj.x(1));

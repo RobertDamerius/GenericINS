@@ -34,17 +34,17 @@
     % Actually the initial state must be given for the position of the IMU but for simplicity we use the first sensor measurements as initial state and a high
     % uncertainty. We don't know the initial inertial biases so we assume zero.
     initialPositionLLA              = input.gnss.data(1,:)';
-    initialVelocityUVR              = input.dvl.data(1,:)';
+    initialVelocityUVW              = input.dvl.data(1,:)';
     initialOrientationRollPitchYaw  = input.ahrs.data(1,:)';
     initialBiasAcc                  = zeros(3,1);
     initialBiasGyr                  = zeros(3,1);
     initialStdPositionLLA           = [1e-8; 1e-8; 0.1];
-    initialStdVelocityUVR           = [0.1; 0.1; 0.1];
+    initialStdVelocityUVW           = [0.1; 0.1; 0.1];
     initialStdOrientationVector     = [1e-3; 1e-3; 1e-3];
     initialStdBiasAcc               = [1e-4; 1e-4; 1e-4];
     initialStdBiasGyr               = [1e-4; 1e-4; 1e-4];
     fprintf('Initializing INS: ');
-    ins.Initialize(initialPositionLLA, initialVelocityUVR, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVR, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, config.imu.stdAcc, config.imu.stdGyr, config.imu.stdAccBias, config.imu.stdGyrBias);
+    ins.Initialize(initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, config.imu.stdAcc, config.imu.stdGyr, config.imu.stdAccBias, config.imu.stdGyrBias);
     fprintf('OK\n');
 
 %% RUN THE GENERIC INS ALGORITHM
