@@ -4,6 +4,7 @@
 % Version     Author                 Changes
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 20200207    Robert Damerius        Initial release.
+% 20200515    Robert Damerius        Initialization makes the filter valid without the need for an additional prediction. Added numPredictions, numUpdates outputs to auto-generated function.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef GenericINS < handle
@@ -12,19 +13,19 @@ classdef GenericINS < handle
             %GenericINS.GenerateFunction Generate a MATLAB function that implements a complete INS algorithm for a specific sensor configuration.
             % 
             % PARAMETERS
-            % functionName           ... The name of the function. The function will be saved as [functionName '.m'].
-            % positionMeasurements   ... N-by-1 vector with N being the number of position measurement sensors. Each element in the vector indicates the dimension. Possible values are:
-            %                              1: Position sensor that measures only altitude.
-            %                              2: Position sensor that measures only latitude and longitude.
-            %                              3: Position sensor that measures latitude, longitude and altitude.
-            % velocityMeasurements   ... N-by-1 vector with N being the number of velocity measurement sensors. Each element in the vector indicates the dimension. Possible values are:
-            %                              1: Velocity sensor that measures only in z-direction.
-            %                              2: Velocity sensor that measures only in x- and y-direction.
-            %                              3: Velocity sensor that measures in all three directions.
+            % functionName            ... The name of the function. The function will be saved as [functionName '.m'].
+            % positionMeasurements    ... N-by-1 vector with N being the number of position measurement sensors. Each element in the vector indicates the dimension. Possible values are:
+            %                               1: Position sensor that measures only altitude.
+            %                               2: Position sensor that measures only latitude and longitude.
+            %                               3: Position sensor that measures latitude, longitude and altitude.
+            % velocityMeasurements    ... N-by-1 vector with N being the number of velocity measurement sensors. Each element in the vector indicates the dimension. Possible values are:
+            %                               1: Velocity sensor that measures only in z-direction.
+            %                               2: Velocity sensor that measures only in x- and y-direction.
+            %                               3: Velocity sensor that measures in all three directions.
             % orientationMeasurements ... N-by-1 vector with N being the number of orientation measurement sensors. Each element in the vector indicates the dimension. Possible values are:
-            %                              1: Orientation sensor that measures only yaw.
-            %                              2: Orientation sensor that measures only roll and pitch.
-            %                              3: Orientation sensor that measures roll, pitch and yaw.
+            %                               1: Orientation sensor that measures only yaw.
+            %                               2: Orientation sensor that measures only roll and pitch.
+            %                               3: Orientation sensor that measures roll, pitch and yaw.
             % 
             % RETURN
             % code ... The generated code as a string.
@@ -154,7 +155,7 @@ classdef GenericINS < handle
                 varCodeSectionA = [varCodeSectionA '    persistent ' arg_Pn_Buffer '; if(isempty(' arg_Pn_Buffer ') || (' arg_Pn_Data '(1) > 0.0)), ' arg_Pn_Buffer ' = ' arg_Pn_Data '; end\n'];
 
                 % Variable code section B
-                varCodeSectionB = [varCodeSectionB '        if(' arg_Pn_Buffer '(1) > 0.0), ' arg_Pn_Buffer '(1) = 0.0; ins.UpdatePosition' num2str(dim) 'D(' arg_Pn_Buffer '(2:end), ' arg_Pn_StdDev ', ' arg_Pn_PositionBody2Sensor '); end\n'];
+                varCodeSectionB = [varCodeSectionB '        if(' arg_Pn_Buffer '(1) > 0.0), numUpdates = numUpdates + int32(1); ' arg_Pn_Buffer '(1) = 0.0; ins.UpdatePosition' num2str(dim) 'D(' arg_Pn_Buffer '(2:end), ' arg_Pn_StdDev ', ' arg_Pn_PositionBody2Sensor '); end\n'];
             end
 
             % Velocity measurements: additional arguments, documentation and variable code sections
@@ -199,7 +200,7 @@ classdef GenericINS < handle
                 varCodeSectionA = [varCodeSectionA '    persistent ' arg_Vn_Buffer '; if(isempty(' arg_Vn_Buffer ') || (' arg_Vn_Data '(1) > 0.0)), ' arg_Vn_Buffer ' = ' arg_Vn_Data '; end\n'];
 
                 % Variable code section B
-                varCodeSectionB = [varCodeSectionB '        if(' arg_Vn_Buffer '(1) > 0.0), ' arg_Vn_Buffer '(1) = 0.0; ins.UpdateVelocity' num2str(dim) 'D(' arg_Vn_Buffer '(2:end), ' arg_Vn_StdDev ', ' arg_Vn_PositionBody2Sensor ', ' arg_Vn_DCMBody2Sensor '); end\n'];
+                varCodeSectionB = [varCodeSectionB '        if(' arg_Vn_Buffer '(1) > 0.0), numUpdates = numUpdates + int32(1); ' arg_Vn_Buffer '(1) = 0.0; ins.UpdateVelocity' num2str(dim) 'D(' arg_Vn_Buffer '(2:end), ' arg_Vn_StdDev ', ' arg_Vn_PositionBody2Sensor ', ' arg_Vn_DCMBody2Sensor '); end\n'];
             end
 
             % Orientation measurements: additional arguments, documentation and variable code sections
@@ -242,12 +243,14 @@ classdef GenericINS < handle
                 varCodeSectionA = [varCodeSectionA '    persistent ' arg_On_Buffer '; if(isempty(' arg_On_Buffer ') || (' arg_On_Data '(1) > 0.0)), ' arg_On_Buffer ' = ' arg_On_Data '; end\n'];
 
                 % Variable code section B
-                varCodeSectionB = [varCodeSectionB '        if(' arg_On_Buffer '(1) > 0.0), ' arg_On_Buffer '(1) = 0.0; ins.UpdateOrientation' num2str(dim) 'D(' arg_On_Buffer '(2:end), ' arg_On_StdDev ', ' arg_On_DCMBody2Sensor '); end\n'];
+                varCodeSectionB = [varCodeSectionB '        if(' arg_On_Buffer '(1) > 0.0), numUpdates = numUpdates + int32(1); ' arg_On_Buffer '(1) = 0.0; ins.UpdateOrientation' num2str(dim) 'D(' arg_On_Buffer '(2:end), ' arg_On_StdDev ', ' arg_On_DCMBody2Sensor '); end\n'];
             end
 
             % Return values
             docs = [docs '    %% \n    %% RETURN'];
-            docs = [docs '\n    %% valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized and has performed at least one prediction.'];
+            docs = [docs '\n    %% valid                      ... A scalar boolean that indicates whether the motion state is valid or not. It is valid if the INS was initialized.'];
+            docs = [docs '\n    %% numPredictions             ... An integer indicating the number of prediction steps that have been calculated (either 0 or 1).'];
+            docs = [docs '\n    %% numUpdates                 ... An integer indicating the number of update steps that have been calculated.'];
             docs = [docs '\n    %% positionLLA                ... Geographic position of the body frame, [lat (rad); lon (rad); alt (m, positive upwards)].'];
             docs = [docs '\n    %% orientationQuaternionWXYZ  ... Unit quaternion describing a rotation from body frame to navigation frame, [qw; qx; qy; qz], where qw indicates the scalar part of the quaternion.'];
             docs = [docs '\n    %% orientationRollPitchYaw    ... Euler angles according to the ZYX-convention.'];
@@ -262,7 +265,7 @@ classdef GenericINS < handle
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate the final function code
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            code = ['function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ' functionName '(' args ')\n' docs '\n'];
+            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ' functionName '(' args ')\n' docs '\n'];
             code = [code '    assert((15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
             code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS(); end\n'];
             code = [code '    persistent imuStdDevBuffer; if(isempty(imuStdDevBuffer)), imuStdDevBuffer = IMU_StdDev; end\n\n'];
@@ -274,8 +277,11 @@ classdef GenericINS < handle
             code = [code '        ins.ResetInertialStandardDeviation(IMU_StdDev(1:3), IMU_StdDev(4:6), IMU_StdDev(7:9), IMU_StdDev(10:12));\n'];
             code = [code '    end\n'];
             code = [code '    imuStdDevBuffer = IMU_StdDev;\n'];
+            code = [code '    numPredictions = int32(0);\n'];
+            code = [code '    numUpdates = int32(0);\n'];
             code = [code '    if(IMU_Data(1) > 0.0)\n'];
             code = [code '        %% Motion prediction\n'];
+            code = [code '        numPredictions = int32(1);\n'];
             code = [code '        ins.Predict(IMU_Data(2:7), sampletime, IMU_DCMBody2Sensor, IMU_PositionBody2Sensor);\n\n'];
             code = [code '        %% Sensor updates\n'];
             code = [code varCodeSectionB];
@@ -296,7 +302,6 @@ classdef GenericINS < handle
     methods
         function obj = GenericINS()
             % Initialize private properties
-            obj.valid = false;
             obj.initialized = false;
             obj.x = zeros(GenericINS.DIM_L, 1);
             obj.S = zeros(GenericINS.DIM_LS);
@@ -396,7 +401,6 @@ classdef GenericINS < handle
             obj.localGravity = GenericINS.Gravity(obj.x(3), obj.x(1), R0);
             obj.spU2D = false;
             obj.gyrRaw = zeros(3,1);
-            obj.valid = false;
             obj.initialized = true;
         end
         function ResetInertialStandardDeviation(obj, stdAcc, stdGyr, stdAccBias, stdGyrBias)
@@ -456,9 +460,6 @@ classdef GenericINS < handle
             obj.gyrRaw = imuData(4:6);
             obj.dcmIMUBody2Sensor = dcmIMUBody2Sensor;
             obj.posIMUBody2Sensor = posIMUBody2Sensor;
-
-            % Make INS data valid
-            obj.valid = true;
         end
         function UpdatePosition3D(obj, measurementLatLonAlt, stdNorthEastDown, posBody2Sensor)
             %GenericINS.UpdatePosition3D Perform an observation step for 3D geographic position data. The update is only calculated if the INS is initialized.
@@ -578,7 +579,7 @@ classdef GenericINS < handle
             %GenericINS.GetMotionState Get the motion state from the context.
             % 
             % RETURN
-            % valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized and has performed at least one prediction.
+            % valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized.
             % positionLLA                ... Geographic position of the body frame, [lat (rad); lon (rad); alt (m, positive upwards)].
             % orientationQuaternionWXYZ  ... Unit quaternion describing a rotation from body frame to navigation frame, [qw; qx; qy; qz], where qw indicates the scalar part of the quaternion.
             % orientationRollPitchYaw    ... Euler angles according to the ZYX-convention.
@@ -589,7 +590,7 @@ classdef GenericINS < handle
             % speedOverGround            ... Speed over ground in meters per second.
             % angleOfAttack              ... Angle of attack in radians.
             % sideSlipAngle              ... Side slip angle in radians.
-            valid = obj.valid;
+            valid = obj.initialized;
 
             % Orientation
             orientationQuaternionWXYZ = GenericINS.Normalize(obj.x(7:10));
@@ -1243,7 +1244,6 @@ classdef GenericINS < handle
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.
-        valid;             % True if filter is initialized and output is valid (at least one prediction), false otherwise.
         Z;                 % Spherical simplex sigma point matrix.
         x;                 % Augmented state vector (L x 1).
         S;                 % Augmented square-root covariance matrix.
