@@ -5,6 +5,7 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 20200207    Robert Damerius        Initial release.
 % 20200515    Robert Damerius        Initialization makes the filter valid without the need for an additional prediction. Added numPredictions, numUpdates outputs to auto-generated function.
+% 20200629    Robert Damerius        Added missing sampletime for bias random walk of euler process model.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef GenericINS < handle
@@ -1185,8 +1186,8 @@ classdef GenericINS < handle
             xOut(7:10) = GenericINS.Normalize(xOut(7:10));
 
             % Predict inertial biases (Random Walk)
-            xOut(11:13) = x(11:13) + w(7:9);
-            xOut(14:16) = x(14:16) + w(10:12);
+            xOut(11:13) = x(11:13) + Ts * w(7:9);
+            xOut(14:16) = x(14:16) + Ts * w(10:12);
         end
         function y = SensorModelPosition(x, Rn, Re, posIMUBody2Sensor, posPOSBody2Sensor)
             % Obtain position and attitude from state x
