@@ -6,6 +6,7 @@
 % 20200207    Robert Damerius        Initial release.
 % 20200515    Robert Damerius        Initialization makes the filter valid without the need for an additional prediction. Added numPredictions, numUpdates outputs to auto-generated function.
 % 20200629    Robert Damerius        Added missing sampletime for bias random walk of euler process model.
+% 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef GenericINS < handle
@@ -577,7 +578,7 @@ classdef GenericINS < handle
             obj.UpdateOrientation(1, measurementYaw, stdYaw, dcmBody2Sensor);
         end
         function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = GetMotionState(obj)
-            %GenericINS.GetMotionState Get the motion state from the context.
+            %GenericINS.GetMotionState Get the motion state.
             % 
             % RETURN
             % valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized.
@@ -622,6 +623,31 @@ classdef GenericINS < handle
             speedOverGround = sqrt(velocityNED(1:2)'*velocityNED(1:2));
             angleOfAttack = GenericINS.SymmetricalAngle(atan2(velocityNED(3), speedOverGround));
             sideSlipAngle = GenericINS.SymmetricalAngle(courseOverGround - yaw);
+        end
+        function [x, S] = GetInternalState(obj)
+            %GenericINS.GetInternalState Get the internal state of the filter.
+            % 
+            % RETURN
+            % x ... 16-by-1 state vector representing the motion state with respect to the IMU. Elements are as follows
+            %        1: Latitude in radians.
+            %        2: Longitude in radians.
+            %        3: Altitude in meters (positive upwards).
+            %        4: North velocity in meters per second.
+            %        5: East velocity in meters per second.
+            %        6: Down velocity in meters per second.
+            %        7: Scalar part of unit quaternion.
+            %        8: First element of vector part of unit quaternion.
+            %        9: Second element of vector part of unit quaternion.
+            %       10: Third element of vector part of unit quaternion.
+            %       11: Accelerometer bias (x) in m/s^2.
+            %       12: Accelerometer bias (y) in m/s^2.
+            %       13: Accelerometer bias (z) in m/s^2.
+            %       14: Gyroscope bias (x) in rad/s.
+            %       15: Gyroscope bias (x) in rad/s.
+            %       16: Gyroscope bias (x) in rad/s.
+            % S ... 15-by-15 matrix representing the square root of the state covariance matrix. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).
+            x = obj.x(1:GenericINS.DIM_X);
+            S = obj.S(1:GenericINS.DIM_XS,1:GenericINS.DIM_XS);
         end
     end
     methods(Access=private)
@@ -966,8 +992,8 @@ classdef GenericINS < handle
             % 
             % RETURN
             % y ... Output angle in radians being in range [-pi, pi).
-            x = double(mod(x, pi+pi));
-            y = x - double(x >= pi) * (pi+pi);
+            x = x - 6.28318530717959 * fix(x * 0.159154943091895);
+            y = x + 6.28318530717959 * double(x < -3.14159265358979) - 6.28318530717959 * double(x >= 3.14159265358979);
         end
         function Q = OV2Q(OV)
             %GenericINS.OV2Q Convert an orientation vector to a unit quaternion.

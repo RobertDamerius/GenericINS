@@ -4,6 +4,7 @@
 % Version     Author                 Changes
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 20181008    Robert Damerius        Initial release.
+% 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 
@@ -491,8 +492,8 @@ classdef SRSSUKF < handle
             % 
             % RETURN
             % y ... Output angle in radians being in range [-pi, pi).
-            x = double(mod(x, pi+pi));
-            y = x - double(x >= pi) * (pi+pi);
+            x = x - 6.28318530717959 * fix(x * 0.159154943091895);
+            y = x + 6.28318530717959 * double(x < -3.14159265358979) - 6.28318530717959 * double(x >= 3.14159265358979);
         end
         function Q = OV2Q(OV)
             %SRSSUKF.OV2Q Convert an orientation vector to a unit quaternion.
