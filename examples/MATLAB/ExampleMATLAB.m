@@ -117,7 +117,7 @@
         end
 
         % Get final state from INS
-        [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ins.GetMotionState();
+        [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();
         output.latitude(k) = positionLLA(1);
         output.longitude(k) = positionLLA(2);
     end

@@ -7,6 +7,7 @@
 % 20200515    Robert Damerius        Initialization makes the filter valid without the need for an additional prediction. Added numPredictions, numUpdates outputs to auto-generated function.
 % 20200629    Robert Damerius        Added missing sampletime for bias random walk of euler process model.
 % 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
+% 20210209    Robert Damerius        Added output for estimated inertial sensor bias.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef GenericINS < handle
@@ -263,11 +264,12 @@ classdef GenericINS < handle
             docs = [docs '\n    %% speedOverGround            ... Speed over ground in meters per second.'];
             docs = [docs '\n    %% angleOfAttack              ... Angle of attack in radians.'];
             docs = [docs '\n    %% sideSlipAngle              ... Side slip angle in radians.'];
+            docs = [docs '\n    %% inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate the final function code
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ' functionName '(' args ')\n' docs '\n'];
+            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ' functionName '(' args ')\n' docs '\n'];
             code = [code '    assert((15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
             code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS(); end\n'];
             code = [code '    persistent imuStdDevBuffer; if(isempty(imuStdDevBuffer)), imuStdDevBuffer = IMU_StdDev; end\n\n'];
@@ -288,7 +290,7 @@ classdef GenericINS < handle
             code = [code '        %% Sensor updates\n'];
             code = [code varCodeSectionB];
             code = [code '    end\n'];
-            code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ins.GetMotionState();\n'];
+            code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();\n'];
             code = [code 'end\n\n'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -577,7 +579,7 @@ classdef GenericINS < handle
             assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateOrientation1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateOrientation(1, measurementYaw, stdYaw, dcmBody2Sensor);
         end
-        function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = GetMotionState(obj)
+        function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = GetMotionState(obj)
             %GenericINS.GetMotionState Get the motion state.
             % 
             % RETURN
@@ -592,6 +594,7 @@ classdef GenericINS < handle
             % speedOverGround            ... Speed over ground in meters per second.
             % angleOfAttack              ... Angle of attack in radians.
             % sideSlipAngle              ... Side slip angle in radians.
+            % inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].
             valid = obj.initialized;
 
             % Orientation
@@ -623,6 +626,9 @@ classdef GenericINS < handle
             speedOverGround = sqrt(velocityNED(1:2)'*velocityNED(1:2));
             angleOfAttack = GenericINS.SymmetricalAngle(atan2(velocityNED(3), speedOverGround));
             sideSlipAngle = GenericINS.SymmetricalAngle(courseOverGround - yaw);
+
+            % Inertial sensor bias
+            inertialSensorBias = obj.x(11:16);
         end
         function [x, S] = GetInternalState(obj)
             %GenericINS.GetInternalState Get the internal state of the filter.
