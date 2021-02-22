@@ -5,6 +5,7 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 20181008    Robert Damerius        Initial release.
 % 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
+% 20210222    Robert Damerius        SymmetricalAngle() function now uses pi again.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 
@@ -492,8 +493,9 @@ classdef SRSSUKF < handle
             % 
             % RETURN
             % y ... Output angle in radians being in range [-pi, pi).
-            x = x - 6.28318530717959 * fix(x * 0.159154943091895);
-            y = x + 6.28318530717959 * double(x < -3.14159265358979) - 6.28318530717959 * double(x >= 3.14159265358979);
+            pi2 = pi + pi;
+            x = x - pi2 * fix(x / pi2);
+            y = x + pi2 * (double(x < -pi) - double(x >= pi));
         end
         function Q = OV2Q(OV)
             %SRSSUKF.OV2Q Convert an orientation vector to a unit quaternion.
