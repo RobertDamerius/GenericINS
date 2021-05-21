@@ -8,11 +8,12 @@
 % 20200629    Robert Damerius        Added missing sampletime for bias random walk of euler process model.
 % 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
 % 20210209    Robert Damerius        Added output for estimated inertial sensor bias.
+% 20210521    Robert Damerius        Added measurement update for speed-over-ground data. Added return value for internal state and sqrt of covariance matrix for generated function.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef GenericINS < handle
     methods(Static)
-        function code = GenerateFunction(functionName, positionMeasurements, velocityMeasurements, orientationMeasurements)
+        function code = GenerateFunction(functionName, positionMeasurements, velocityMeasurements, orientationMeasurements, numSOGMeasurements)
             %GenericINS.GenerateFunction Generate a MATLAB function that implements a complete INS algorithm for a specific sensor configuration.
             % 
             % PARAMETERS
@@ -29,6 +30,7 @@ classdef GenericINS < handle
             %                               1: Orientation sensor that measures only yaw.
             %                               2: Orientation sensor that measures only roll and pitch.
             %                               3: Orientation sensor that measures roll, pitch and yaw.
+            % numSOGMeasurements      ... Scalar value representing the number of SOG measurements.
             % 
             % RETURN
             % code ... The generated code as a string.
@@ -37,6 +39,7 @@ classdef GenericINS < handle
             positionMeasurements = int32(positionMeasurements);
             velocityMeasurements = int32(velocityMeasurements);
             orientationMeasurements = int32(orientationMeasurements);
+            numSOGMeasurements = int32(numSOGMeasurements);
             numPositionMeasurements = int32(length(positionMeasurements));
             numVelocityMeasurements = int32(length(velocityMeasurements));
             numOrientationMeasurements = int32(length(orientationMeasurements));
@@ -46,6 +49,8 @@ classdef GenericINS < handle
             assert(0 == (sum(positionMeasurements < 1) + sum(positionMeasurements > 3)), 'GenericINS.GenerateFunction(): "positionMeasurements" must only contain integer values {1, 2, 3}!');
             assert(0 == (sum(velocityMeasurements < 1) + sum(velocityMeasurements > 3)), 'GenericINS.GenerateFunction(): "velocityMeasurements" must only contain integer values {1, 2, 3}!');
             assert(0 == (sum(orientationMeasurements < 1) + sum(orientationMeasurements > 3)), 'GenericINS.GenerateFunction(): "orientationMeasurements" must only contain integer values {1, 2, 3}!');
+            assert(isscalar(numSOGMeasurements), 'GenericINS.GenerateFunction(): "numSOGMeasurements" must be scalar!');
+
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate argument list, documentation for function and variable code sections
@@ -55,67 +60,67 @@ classdef GenericINS < handle
 
             % Default arguments
             docs = ['    %%' functionName ' Generated MATLAB function for a generic inertial navigation system (' num2str(numPositionMeasurements) ' position measurements, ' num2str(numVelocityMeasurements) ' velocity measurements, ' num2str(numOrientationMeasurements) ' orientation measurements).\n'];
-            docs = [docs '    %% This function was automatically generated using the command GenericINS.GenerateFunction(''' functionName ''', [' num2str(positionMeasurements) '], [' num2str(velocityMeasurements) '], [' num2str(orientationMeasurements) ']).\n'];
+            docs = [docs '    %% This function was automatically generated using the command GenericINS.GenerateFunction(''' functionName ''', [' num2str(positionMeasurements) '], [' num2str(velocityMeasurements) '], [' num2str(orientationMeasurements) '], ' num2str(numSOGMeasurements) ').\n'];
             docs = [docs '    %% \n'];
             docs = [docs '    %% PARAMETERS\n'];
-            docs = [docs '    %% initialState            ... 15-by-1 initial state vector to be used when the INS is reset. The elements are as follows:\n'];
-            docs = [docs '    %%                              1: latitude     [rad]     Initial latitude of the position of the IMU.\n'];
-            docs = [docs '    %%                              2: longitude    [rad]     Initial longitude of the position of the IMU.\n'];
-            docs = [docs '    %%                              3: altitude     [m]       Initial altitude of the position of the IMU, positive upwards.\n'];
-            docs = [docs '    %%                              4: velocityU    [m/s]     Initial body-fixed velocity in x-direction of the body-frame at the position of the IMU.\n'];
-            docs = [docs '    %%                              5: velocityV    [m/s]     Initial body-fixed velocity in y-direction of the body-frame at the position of the IMU.\n'];
-            docs = [docs '    %%                              6: velocityW    [m/s]     Initial body-fixed velocity in z-direction of the body-frame at the position of the IMU.\n'];
-            docs = [docs '    %%                              7: roll         [rad]     Initial roll angle.\n'];
-            docs = [docs '    %%                              8: pitch        [rad]     Initial pitch angle.\n'];
-            docs = [docs '    %%                              9: yaw          [rad]     Initial yaw angle.\n'];
-            docs = [docs '    %%                             10: biasAccX     [m/(s*s)] Initial acceleration bias in x-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             11: biasAccY     [m/(s*s)] Initial acceleration bias in y-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             12: biasAccZ     [m/(s*s)] Initial acceleration bias in z-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             13: biasGyrX     [rad/s]   Initial angular rate bias around x-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             14: biasGyrY     [rad/s]   Initial angular rate bias around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             15: biasGyrZ     [rad/s]   Initial angular rate bias around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% initialStdDev           ... 15-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
-            docs = [docs '    %%                             too small values for the filter to converge. The elements are as follows:\n'];
-            docs = [docs '    %%                              1: latitude     [rad]     Initial standard deviation for initial latitude.\n'];
-            docs = [docs '    %%                              2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
-            docs = [docs '    %%                              3: altitude     [m]       Initial standard deviation for initial altitude.\n'];
-            docs = [docs '    %%                              4: velocityU    [m/s]     Initial standard deviation for initial body-fixed velocity in x-direction of the body-frame.\n'];
-            docs = [docs '    %%                              5: velocityV    [m/s]     Initial standard deviation for initial body-fixed velocity in y-direction of the body-frame.\n'];
-            docs = [docs '    %%                              6: velocityW    [m/s]     Initial standard deviation for initial body-fixed velocity in z-direction of the body-frame.\n'];
-            docs = [docs '    %%                              7: orientationX           Initial standard deviation for x-component of orientation vector (axis-angle representation).\n'];
-            docs = [docs '    %%                              8: orientationY           Initial standard deviation for y-component of orientation vector (axis-angle representation).\n'];
-            docs = [docs '    %%                              9: orientationZ           Initial standard deviation for z-component of orientation vector (axis-angle representation).\n'];
-            docs = [docs '    %%                             10: biasAccX     [m/(s*s)] Initial standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             11: biasAccY     [m/(s*s)] Initial standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             12: biasAccZ     [m/(s*s)] Initial standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             13: biasGyrX     [rad/s]   Initial standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             14: biasGyrY     [rad/s]   Initial standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             15: biasGyrZ     [rad/s]   Initial standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% reset                   ... Greater than 0.0 if filter should be reset/reinitialized, 0.0 otherwise. During an initialization the initial state and initial standard deviations are used.\n'];
-            docs = [docs '    %% sampletime              ... Discrete sampletime in seconds to be used for forward euler integration. Should be the elapsed time to the latest prediction.\n'];
-            docs = [docs '    %% IMU_Data                ... The 7-by-1 vector representing the IMU data where the elements are as follows:\n'];
-            docs = [docs '    %%                              1: trigger                Greater than 0.0 if new IMU data is available and should be used in a prediction step, 0.0 otherwise.\n'];
-            docs = [docs '    %%                              2: accX         [m/(s*s)] Acceleration in x-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              3: accY         [m/(s*s)] Acceleration in y-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              4: accZ         [m/(s*s)] Acceleration in z-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              5: gyrX         [rad/s]   Angular rate around x-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                              6: gyrY         [rad/s]   Angular rate around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                              7: gyrZ         [rad/s]   Angular rate around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% IMU_StdDev              ... 12-by-1 vector representing the standard deviation for inertial measurements and inertial biases. The elements are as follows:\n'];
-            docs = [docs '    %%                              1: accX         [m/(s*s)] Standard deviation for acceleration in x-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              2: accY         [m/(s*s)] Standard deviation for acceleration in y-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              3: accZ         [m/(s*s)] Standard deviation for acceleration in z-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              4: gyrX         [rad/s]   Standard deviation for angular rate around x-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                              5: gyrY         [rad/s]   Standard deviation for angular rate around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                              6: gyrZ         [rad/s]   Standard deviation for angular rate around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                              7: biasAccX     [m/(s*s)] Standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              8: biasAccY     [m/(s*s)] Standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                              9: biasAccZ     [m/(s*s)] Standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
-            docs = [docs '    %%                             10: biasGyrX     [rad/s]   Standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             11: biasGyrY     [rad/s]   Standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                             12: biasGyrZ     [rad/s]   Standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% IMU_PositionBody2Sensor ... Position of IMU sensor frame origin w.r.t. body frame origin in body frame coordinates (meters).\n'];
-            docs = [docs '    %% IMU_DCMBody2Sensor      ... Direction cosine matrix to rotate measurements from body frame to sensor frame.\n'];
+            docs = [docs '    %% initialState               ... 15-by-1 initial state vector to be used when the INS is reset. The elements are as follows:\n'];
+            docs = [docs '    %%                                 1: latitude     [rad]     Initial latitude of the position of the IMU.\n'];
+            docs = [docs '    %%                                 2: longitude    [rad]     Initial longitude of the position of the IMU.\n'];
+            docs = [docs '    %%                                 3: altitude     [m]       Initial altitude of the position of the IMU, positive upwards.\n'];
+            docs = [docs '    %%                                 4: velocityU    [m/s]     Initial body-fixed velocity in x-direction of the body-frame at the position of the IMU.\n'];
+            docs = [docs '    %%                                 5: velocityV    [m/s]     Initial body-fixed velocity in y-direction of the body-frame at the position of the IMU.\n'];
+            docs = [docs '    %%                                 6: velocityW    [m/s]     Initial body-fixed velocity in z-direction of the body-frame at the position of the IMU.\n'];
+            docs = [docs '    %%                                 7: roll         [rad]     Initial roll angle.\n'];
+            docs = [docs '    %%                                 8: pitch        [rad]     Initial pitch angle.\n'];
+            docs = [docs '    %%                                 9: yaw          [rad]     Initial yaw angle.\n'];
+            docs = [docs '    %%                                10: biasAccX     [m/(s*s)] Initial acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasAccY     [m/(s*s)] Initial acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasAccZ     [m/(s*s)] Initial acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                13: biasGyrX     [rad/s]   Initial angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                14: biasGyrY     [rad/s]   Initial angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                15: biasGyrZ     [rad/s]   Initial angular rate bias around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %% initialStdDev              ... 15-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
+            docs = [docs '    %%                                too small values for the filter to converge. The elements are as follows:\n'];
+            docs = [docs '    %%                                 1: latitude     [rad]     Initial standard deviation for initial latitude.\n'];
+            docs = [docs '    %%                                 2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
+            docs = [docs '    %%                                 3: altitude     [m]       Initial standard deviation for initial altitude.\n'];
+            docs = [docs '    %%                                 4: velocityU    [m/s]     Initial standard deviation for initial body-fixed velocity in x-direction of the body-frame.\n'];
+            docs = [docs '    %%                                 5: velocityV    [m/s]     Initial standard deviation for initial body-fixed velocity in y-direction of the body-frame.\n'];
+            docs = [docs '    %%                                 6: velocityW    [m/s]     Initial standard deviation for initial body-fixed velocity in z-direction of the body-frame.\n'];
+            docs = [docs '    %%                                 7: orientationX           Initial standard deviation for x-component of orientation vector (axis-angle representation).\n'];
+            docs = [docs '    %%                                 8: orientationY           Initial standard deviation for y-component of orientation vector (axis-angle representation).\n'];
+            docs = [docs '    %%                                 9: orientationZ           Initial standard deviation for z-component of orientation vector (axis-angle representation).\n'];
+            docs = [docs '    %%                                10: biasAccX     [m/(s*s)] Initial standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasAccY     [m/(s*s)] Initial standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasAccZ     [m/(s*s)] Initial standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                13: biasGyrX     [rad/s]   Initial standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                14: biasGyrY     [rad/s]   Initial standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                15: biasGyrZ     [rad/s]   Initial standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %% reset                      ... Greater than 0.0 if filter should be reset/reinitialized, 0.0 otherwise. During an initialization the initial state and initial standard deviations are used.\n'];
+            docs = [docs '    %% sampletime                 ... Discrete sampletime in seconds to be used for forward euler integration. Should be the elapsed time to the latest prediction.\n'];
+            docs = [docs '    %% IMU_Data                   ... The 7-by-1 vector representing the IMU data where the elements are as follows:\n'];
+            docs = [docs '    %%                                 1: trigger                Greater than 0.0 if new IMU data is available and should be used in a prediction step, 0.0 otherwise.\n'];
+            docs = [docs '    %%                                 2: accX         [m/(s*s)] Acceleration in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 3: accY         [m/(s*s)] Acceleration in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 4: accZ         [m/(s*s)] Acceleration in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 5: gyrX         [rad/s]   Angular rate around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 6: gyrY         [rad/s]   Angular rate around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 7: gyrZ         [rad/s]   Angular rate around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %% IMU_StdDev                 ... 12-by-1 vector representing the standard deviation for inertial measurements and inertial biases. The elements are as follows:\n'];
+            docs = [docs '    %%                                 1: accX         [m/(s*s)] Standard deviation for acceleration in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 2: accY         [m/(s*s)] Standard deviation for acceleration in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 3: accZ         [m/(s*s)] Standard deviation for acceleration in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 4: gyrX         [rad/s]   Standard deviation for angular rate around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 5: gyrY         [rad/s]   Standard deviation for angular rate around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                    6: gyrZ         [rad/s]   Standard deviation for angular rate around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 7: biasAccX     [m/(s*s)] Standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 8: biasAccY     [m/(s*s)] Standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 9: biasAccZ     [m/(s*s)] Standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                10: biasGyrX     [rad/s]   Standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasGyrY     [rad/s]   Standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasGyrZ     [rad/s]   Standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %% IMU_PositionBody2Sensor    ... Position of IMU sensor frame origin w.r.t. body frame origin in body frame coordinates (meters).\n'];
+            docs = [docs '    %% IMU_DCMBody2Sensor         ... Direction cosine matrix to rotate measurements from body frame to sensor frame.\n'];
             args = 'initialState, initialStdDev, reset, sampletime, IMU_Data, IMU_StdDev, IMU_PositionBody2Sensor, IMU_DCMBody2Sensor';
 
             % Position measurements: additional arguments, documentation and variable code sections
@@ -126,32 +131,32 @@ classdef GenericINS < handle
                 arg_Pn_PositionBody2Sensor = ['P' num2str(n) '_PositionBody2Sensor'];
                 arg_Pn_Buffer = ['P' num2str(n) '_Buffer'];
                 args = [args ', ' arg_Pn_Data ', ' arg_Pn_StdDev ', ' arg_Pn_PositionBody2Sensor];
-                docs = [docs '    %% ' arg_Pn_Data '                 ... ' num2str(int32(1) + dim) '-by-1 vector representing the position measurements of position sensor ' num2str(n) '. The elements are as follows:\n'];
-                docs = [docs '    %%                              1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
+                docs = [docs '    %% ' arg_Pn_Data '                    ... ' num2str(int32(1) + dim) '-by-1 vector representing the position measurements of position sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %%                                 1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              2: altitude     [m]       The altitude measurement.\n'];
+                        docs = [docs '    %%                                 2: altitude     [m]       The altitude measurement.\n'];
                     case 2
-                        docs = [docs '    %%                              2: latitude     [rad]     The latitude measurement.\n'];
-                        docs = [docs '    %%                              3: longitude    [rad]     The longitude measurement.\n'];
+                        docs = [docs '    %%                                 2: latitude     [rad]     The latitude measurement.\n'];
+                        docs = [docs '    %%                                 3: longitude    [rad]     The longitude measurement.\n'];
                     case 3
-                        docs = [docs '    %%                              2: latitude     [rad]     The latitude measurement.\n'];
-                        docs = [docs '    %%                              3: longitude    [rad]     The longitude measurement.\n'];
-                        docs = [docs '    %%                              4: altitude     [m]       The altitude measurement.\n'];
+                        docs = [docs '    %%                                 2: latitude     [rad]     The latitude measurement.\n'];
+                        docs = [docs '    %%                                 3: longitude    [rad]     The longitude measurement.\n'];
+                        docs = [docs '    %%                                 4: altitude     [m]       The altitude measurement.\n'];
                 end
-                docs = [docs '    %% ' arg_Pn_StdDev '               ... ' num2str(dim) '-by-1 vector representing the standard deviation for the position measurements of position sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %% ' arg_Pn_StdDev '                  ... ' num2str(dim) '-by-1 vector representing the standard deviation for the position measurements of position sensor ' num2str(n) '. The elements are as follows:\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              1: stdDown      [m]       Standard deviation in up/down-direction.\n'];
+                        docs = [docs '    %%                                 1: stdDown      [m]       Standard deviation in up/down-direction.\n'];
                     case 2
-                        docs = [docs '    %%                              1: stdNorth     [m]       Standard deviation in north direction.\n'];
-                        docs = [docs '    %%                              2: stdEast      [m]       Standard deviation in east direction.\n'];
+                        docs = [docs '    %%                                 1: stdNorth     [m]       Standard deviation in north direction.\n'];
+                        docs = [docs '    %%                                 2: stdEast      [m]       Standard deviation in east direction.\n'];
                     case 3
-                        docs = [docs '    %%                              1: stdNorth     [m]       Standard deviation in north direction.\n'];
-                        docs = [docs '    %%                              2: stdEast      [m]       Standard deviation in east direction.\n'];
-                        docs = [docs '    %%                              3: stdDown      [m]       Standard deviation in up/down-direction.\n'];
+                        docs = [docs '    %%                                 1: stdNorth     [m]       Standard deviation in north direction.\n'];
+                        docs = [docs '    %%                                 2: stdEast      [m]       Standard deviation in east direction.\n'];
+                        docs = [docs '    %%                                 3: stdDown      [m]       Standard deviation in up/down-direction.\n'];
                 end
-                docs = [docs '    %% ' arg_Pn_PositionBody2Sensor '  ... Position of position sensor ' num2str(n) ' w.r.t. body frame origin in body frame coordinates (meters).\n'];
+                docs = [docs '    %% ' arg_Pn_PositionBody2Sensor '     ... Position of position sensor ' num2str(n) ' w.r.t. body frame origin in body frame coordinates (meters).\n'];
 
                 % Variable code section A
                 varCodeSectionA = [varCodeSectionA '    assert((' num2str(int32(1) + dim) ' == size(' arg_Pn_Data ',1)) && (1 == size(' arg_Pn_Data ',2)) && (' num2str(dim) ' == size(' arg_Pn_StdDev ',1)) && (1 == size(' arg_Pn_StdDev ',2)) && (3 == size(' arg_Pn_PositionBody2Sensor ',1)) && (1 == size(' arg_Pn_PositionBody2Sensor ',2)));\n'];
@@ -170,33 +175,33 @@ classdef GenericINS < handle
                 arg_Vn_DCMBody2Sensor = ['V' num2str(n) '_DCMBody2Sensor'];
                 arg_Vn_Buffer = ['V' num2str(n) '_Buffer'];
                 args = [args ', ' arg_Vn_Data ', ' arg_Vn_StdDev ', ' arg_Vn_PositionBody2Sensor ', ' arg_Vn_DCMBody2Sensor];
-                docs = [docs '    %% ' arg_Vn_Data '                 ... ' num2str(int32(1) + dim) '-by-1 vector representing the velocity measurements of velocity sensor ' num2str(n) '. The elements are as follows:\n'];
-                docs = [docs '    %%                              1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
+                docs = [docs '    %% ' arg_Vn_Data '                    ... ' num2str(int32(1) + dim) '-by-1 vector representing the velocity measurements of velocity sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %%                                 1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              2: velocityZ    [m/s]     The velocity measurement in z-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 2: velocityZ    [m/s]     The velocity measurement in z-direction of sensor frame.\n'];
                     case 2
-                        docs = [docs '    %%                              2: velocityX    [m/s]     The velocity measurement in x-direction of sensor frame.\n'];
-                        docs = [docs '    %%                              3: velocityY    [m/s]     The velocity measurement in y-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 2: velocityX    [m/s]     The velocity measurement in x-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 3: velocityY    [m/s]     The velocity measurement in y-direction of sensor frame.\n'];
                     case 3
-                        docs = [docs '    %%                              2: velocityX    [m/s]     The velocity measurement in x-direction of sensor frame.\n'];
-                        docs = [docs '    %%                              3: velocityY    [m/s]     The velocity measurement in y-direction of sensor frame.\n'];
-                        docs = [docs '    %%                              4: velocityZ    [m/s]     The velocity measurement in z-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 2: velocityX    [m/s]     The velocity measurement in x-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 3: velocityY    [m/s]     The velocity measurement in y-direction of sensor frame.\n'];
+                        docs = [docs '    %%                                 4: velocityZ    [m/s]     The velocity measurement in z-direction of sensor frame.\n'];
                 end
-                docs = [docs '    %% ' arg_Vn_StdDev '               ... ' num2str(dim) '-by-1 vector representing the standard deviation for the velocity measurements of velocity sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %% ' arg_Vn_StdDev '                  ... ' num2str(dim) '-by-1 vector representing the standard deviation for the velocity measurements of velocity sensor ' num2str(n) '. The elements are as follows:\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              1: stdZ         [m/s]     Standard deviation in z-direction.\n'];
+                        docs = [docs '    %%                                 1: stdZ         [m/s]     Standard deviation in z-direction.\n'];
                     case 2
-                        docs = [docs '    %%                              1: stdX         [m/s]     Standard deviation in x-direction.\n'];
-                        docs = [docs '    %%                              2: stdY         [m/s]     Standard deviation in y-direction.\n'];
+                        docs = [docs '    %%                                 1: stdX         [m/s]     Standard deviation in x-direction.\n'];
+                        docs = [docs '    %%                                 2: stdY         [m/s]     Standard deviation in y-direction.\n'];
                     case 3
-                        docs = [docs '    %%                              1: stdX         [m/s]     Standard deviation in x-direction.\n'];
-                        docs = [docs '    %%                              2: stdY         [m/s]     Standard deviation in y-direction.\n'];
-                        docs = [docs '    %%                              3: stdZ         [m/s]     Standard deviation in z-direction.\n'];
+                        docs = [docs '    %%                                 1: stdX         [m/s]     Standard deviation in x-direction.\n'];
+                        docs = [docs '    %%                                 2: stdY         [m/s]     Standard deviation in y-direction.\n'];
+                        docs = [docs '    %%                                 3: stdZ         [m/s]     Standard deviation in z-direction.\n'];
                 end
-                docs = [docs '    %% ' arg_Vn_PositionBody2Sensor '  ... Position of velocity sensor ' num2str(n) ' w.r.t. body frame origin in body frame coordinates (meters).\n'];
-                docs = [docs '    %% ' arg_Vn_DCMBody2Sensor '       ... Direction cosine matrix to rotate vectors from body frame to sensor frame.\n'];
+                docs = [docs '    %% ' arg_Vn_PositionBody2Sensor '     ... Position of velocity sensor ' num2str(n) ' w.r.t. body frame origin in body frame coordinates (meters).\n'];
+                docs = [docs '    %% ' arg_Vn_DCMBody2Sensor '          ... Direction cosine matrix to rotate vectors from body frame to sensor frame.\n'];
 
                 % Variable code section A
                 varCodeSectionA = [varCodeSectionA '    assert((' num2str(int32(1) + dim) ' == size(' arg_Vn_Data ',1)) && (1 == size(' arg_Vn_Data ',2)) && (' num2str(dim) ' == size(' arg_Vn_StdDev ',1)) && (1 == size(' arg_Vn_StdDev ',2)) && (3 == size(' arg_Vn_PositionBody2Sensor ',1)) && (1 == size(' arg_Vn_PositionBody2Sensor ',2)) && (3 == size(' arg_Vn_DCMBody2Sensor ',1)) && (3 == size(' arg_Vn_DCMBody2Sensor ',2)));\n'];
@@ -214,32 +219,32 @@ classdef GenericINS < handle
                 arg_On_DCMBody2Sensor = ['O' num2str(n) '_DCMBody2Sensor'];
                 arg_On_Buffer = ['O' num2str(n) '_Buffer'];
                 args = [args ', ' arg_On_Data ', ' arg_On_StdDev ', ' arg_On_DCMBody2Sensor];
-                docs = [docs '    %% ' arg_On_Data '                 ... ' num2str(int32(1) + dim) '-by-1 vector representing the orientation measurements of orientation sensor ' num2str(n) '. Note that orientation measurements must only be used for applications with small roll and pitch angles. The elements are as follows:\n'];
-                docs = [docs '    %%                              1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
+                docs = [docs '    %% ' arg_On_Data '                    ... ' num2str(int32(1) + dim) '-by-1 vector representing the orientation measurements of orientation sensor ' num2str(n) '. Note that orientation measurements must only be used for applications with small roll and pitch angles. The elements are as follows:\n'];
+                docs = [docs '    %%                                 1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              2: yaw          [rad]     The yaw angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 2: yaw          [rad]     The yaw angle measurement (ZYX-convention).\n'];
                     case 2
-                        docs = [docs '    %%                              2: roll         [rad]     The roll angle measurement (ZYX-convention).\n'];
-                        docs = [docs '    %%                              3: pitch        [rad]     The pitch angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 2: roll         [rad]     The roll angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 3: pitch        [rad]     The pitch angle measurement (ZYX-convention).\n'];
                     case 3
-                        docs = [docs '    %%                              2: roll         [rad]     The roll angle measurement (ZYX-convention).\n'];
-                        docs = [docs '    %%                              3: pitch        [rad]     The pitch angle measurement (ZYX-convention).\n'];
-                        docs = [docs '    %%                              4: yaw          [rad]     The yaw angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 2: roll         [rad]     The roll angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 3: pitch        [rad]     The pitch angle measurement (ZYX-convention).\n'];
+                        docs = [docs '    %%                                 4: yaw          [rad]     The yaw angle measurement (ZYX-convention).\n'];
                 end
-                docs = [docs '    %% ' arg_On_StdDev '               ... ' num2str(dim) '-by-1 vector representing the standard deviation for the orientation measurements of orientation sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %% ' arg_On_StdDev '                  ... ' num2str(dim) '-by-1 vector representing the standard deviation for the orientation measurements of orientation sensor ' num2str(n) '. The elements are as follows:\n'];
                 switch(dim)
                     case 1
-                        docs = [docs '    %%                              1: stdYaw       [rad]     Standard deviation for yaw angle.\n'];
+                        docs = [docs '    %%                                 1: stdYaw       [rad]     Standard deviation for yaw angle.\n'];
                     case 2
-                        docs = [docs '    %%                              1: stdRoll      [rad]     Standard deviation for roll angle.\n'];
-                        docs = [docs '    %%                              2: stdPitch     [rad]     Standard deviation for pitch angle.\n'];
+                        docs = [docs '    %%                                 1: stdRoll      [rad]     Standard deviation for roll angle.\n'];
+                        docs = [docs '    %%                                 2: stdPitch     [rad]     Standard deviation for pitch angle.\n'];
                     case 3
-                        docs = [docs '    %%                              1: stdRoll      [rad]     Standard deviation for roll angle.\n'];
-                        docs = [docs '    %%                              2: stdPitch     [rad]     Standard deviation for pitch angle.\n'];
-                        docs = [docs '    %%                              3: stdYaw       [rad]     Standard deviation for yaw angle.\n'];
+                        docs = [docs '    %%                                 1: stdRoll      [rad]     Standard deviation for roll angle.\n'];
+                        docs = [docs '    %%                                 2: stdPitch     [rad]     Standard deviation for pitch angle.\n'];
+                        docs = [docs '    %%                                 3: stdYaw       [rad]     Standard deviation for yaw angle.\n'];
                 end
-                docs = [docs '    %% ' arg_On_DCMBody2Sensor '       ... Direction cosine matrix to rotate vectors from body frame to sensor frame.\n'];
+                docs = [docs '    %% ' arg_On_DCMBody2Sensor '          ... Direction cosine matrix to rotate vectors from body frame to sensor frame.\n'];
 
                 % Variable code section A
                 varCodeSectionA = [varCodeSectionA '    assert((' num2str(int32(1) + dim) ' == size(' arg_On_Data ',1)) && (1 == size(' arg_On_Data ',2)) && (' num2str(dim) ' == size(' arg_On_StdDev ',1)) && (1 == size(' arg_On_StdDev ',2)) && (3 == size(' arg_On_DCMBody2Sensor ',1)) && (3 == size(' arg_On_DCMBody2Sensor ',2)));\n'];
@@ -247,6 +252,27 @@ classdef GenericINS < handle
 
                 % Variable code section B
                 varCodeSectionB = [varCodeSectionB '        if(' arg_On_Buffer '(1) > 0.0), numUpdates = numUpdates + int32(1); ' arg_On_Buffer '(1) = 0.0; ins.UpdateOrientation' num2str(dim) 'D(' arg_On_Buffer '(2:end), ' arg_On_StdDev ', ' arg_On_DCMBody2Sensor '); end\n'];
+            end
+
+            % SOG measurements: additional arguments, documentation and variable code sections
+            for n = int32(1):numSOGMeasurements
+                arg_SOGn_Data = ['SOG' num2str(n) '_Data'];
+                arg_SOGn_StdDev = ['SOG' num2str(n) '_StdDev'];
+                arg_SOGn_PositionBody2Sensor = ['SOG' num2str(n) '_PositionBody2Sensor'];
+                arg_SOGn_Buffer = ['SOG' num2str(n) '_Buffer'];
+                args = [args ', ' arg_SOGn_Data ', ' arg_SOGn_StdDev ', ' arg_SOGn_PositionBody2Sensor];
+                docs = [docs '    %% ' arg_SOGn_Data '                  ... 2-by-1 vector representing the speed-over-ground measurements of SOG sensor ' num2str(n) '. The elements are as follows:\n'];
+                docs = [docs '    %%                                 1: trigger                Greater than 0.0 if new measurement data is available and should be used in an update step, 0.0 otherwise.\n'];
+                docs = [docs '    %%                                 2: speedOverGround [m/s]     The velocity measurement in z-direction of sensor frame.\n'];
+                docs = [docs '    %% ' arg_SOGn_StdDev '                ... Scalar value representing the standard deviation for the speed-over-ground measurement of SOG sensor ' num2str(n) ' in [m/s].\n'];
+                docs = [docs '    %% ' arg_SOGn_PositionBody2Sensor '   ... Position of SOG sensor ' num2str(n) ' w.r.t. body frame origin in body frame coordinates (meters).\n'];
+
+                % Variable code section A
+                varCodeSectionA = [varCodeSectionA '    assert((2 == size(' arg_SOGn_Data ',1)) && (1 == size(' arg_SOGn_Data ',2)) && (1 == size(' arg_SOGn_StdDev ',1)) && (1 == size(' arg_SOGn_StdDev ',2)) && (3 == size(' arg_SOGn_PositionBody2Sensor ',1)) && (1 == size(' arg_SOGn_PositionBody2Sensor ',2)));\n'];
+                varCodeSectionA = [varCodeSectionA '    persistent ' arg_SOGn_Buffer '; if(isempty(' arg_SOGn_Buffer ') || (' arg_SOGn_Data '(1) > 0.0)), ' arg_SOGn_Buffer ' = ' arg_SOGn_Data '; end\n'];
+
+                % Variable code section B
+                varCodeSectionB = [varCodeSectionB '        if(' arg_SOGn_Buffer '(1) > 0.0), numUpdates = numUpdates + int32(1); ' arg_SOGn_Buffer '(1) = 0.0; ins.UpdateSOG(' arg_SOGn_Buffer '(2:end), ' arg_SOGn_StdDev ', ' arg_SOGn_PositionBody2Sensor '); end\n'];
             end
 
             % Return values
@@ -265,11 +291,29 @@ classdef GenericINS < handle
             docs = [docs '\n    %% angleOfAttack              ... Angle of attack in radians.'];
             docs = [docs '\n    %% sideSlipAngle              ... Side slip angle in radians.'];
             docs = [docs '\n    %% inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].'];
+            docs = [docs '\n    %% internalX                  ... 16-by-1 state vector representing the internal motion state with respect to the IMU. Elements are as follows:'];
+            docs = [docs '\n    %%                            ...  1: Latitude in radians.'];
+            docs = [docs '\n    %%                            ...  2: Longitude in radians.'];
+            docs = [docs '\n    %%                            ...  3: Altitude in meters (positive upwards).'];
+            docs = [docs '\n    %%                            ...  4: North velocity in meters per second.'];
+            docs = [docs '\n    %%                            ...  5: East velocity in meters per second.'];
+            docs = [docs '\n    %%                            ...  6: Down velocity in meters per second.'];
+            docs = [docs '\n    %%                            ...  7: Scalar part of unit quaternion.'];
+            docs = [docs '\n    %%                            ...  8: First element of vector part of unit quaternion.'];
+            docs = [docs '\n    %%                            ...  9: Second element of vector part of unit quaternion.'];
+            docs = [docs '\n    %%                            ... 10: Third element of vector part of unit quaternion.'];
+            docs = [docs '\n    %%                            ... 11: Accelerometer bias (x) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 12: Accelerometer bias (y) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 13: Accelerometer bias (z) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 14: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %%                            ... 15: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %%                            ... 16: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %% internalS                  ... 15-by-15 matrix representing the internal square root of the state covariance matrix. This matrix relates to the internalX state. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate the final function code
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ' functionName '(' args ')\n' docs '\n'];
+            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias, internalX, internalS] = ' functionName '(' args ')\n' docs '\n'];
             code = [code '    assert((15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
             code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS(); end\n'];
             code = [code '    persistent imuStdDevBuffer; if(isempty(imuStdDevBuffer)), imuStdDevBuffer = IMU_StdDev; end\n\n'];
@@ -291,6 +335,7 @@ classdef GenericINS < handle
             code = [code varCodeSectionB];
             code = [code '    end\n'];
             code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();\n'];
+            code = [code '    [internalX, internalS] = ins.GetInternalState();\n'];
             code = [code 'end\n\n'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -526,7 +571,7 @@ classdef GenericINS < handle
             assert((2 == size(measurementXY,1)) && (1 == size(measurementXY,2)) && isa(measurementXY, 'double'), 'GenericINS.UpdateVelocity2D(): "measurementXY" must be a 2-by-1 vector of type double!');
             assert((2 == size(stdXY,1)) && (1 == size(stdXY,2)) && isa(stdXY, 'double'), 'GenericINS.UpdateVelocity2D(): "stdXY" must be a 2-by-1 vector of type double!');
             assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateVelocity2D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity2D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateVelocity(2, measurementXY, stdXY, posBody2Sensor, dcmBody2Sensor);
         end
         function UpdateVelocity1D(obj, measurementZ, stdZ, posBody2Sensor, dcmBody2Sensor)
@@ -540,8 +585,20 @@ classdef GenericINS < handle
             assert(isscalar(measurementZ) && isa(measurementZ, 'double'), 'GenericINS.UpdateVelocity1D(): "measurementZ" must be a scalar of type double!');
             assert(isscalar(stdZ) && isa(stdZ, 'double'), 'GenericINS.UpdateVelocity1D(): "stdZ" must be a scalar of type double!');
             assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateVelocity1D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateVelocity(1, measurementZ, stdZ, posBody2Sensor, dcmBody2Sensor);
+        end
+        function UpdateSOG(obj, measurementSOG, stdSOG, posBody2Sensor)
+            %GenericINS.UpdateSOG Perform an observation step for speed-over-ground data. The update is only calculated if the INS is initialized.
+            % 
+            % PARAMETERS
+            % measurementSOG ... The measurement scalar, [sog (m/s)].
+            % stdSOG         ... The standard deviation, [sog (m/s)].
+            % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
+            assert(isscalar(measurementSOG) && isa(measurementSOG, 'double'), 'GenericINS.UpdateSOG(): "measurementSOG" must be a scalar of type double!');
+            assert(isscalar(stdSOG) && isa(stdSOG, 'double'), 'GenericINS.UpdateSOG(): "stdSOG" must be a scalar of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateSOG(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            obj.UpdateSpeedOverGround(measurementSOG, stdSOG, posBody2Sensor);
         end
         function UpdateOrientation3D(obj, measurementRollPitchYaw, stdRollPitchYaw, dcmBody2Sensor)
             %GenericINS.UpdateOrientation3D Perform an observation step for 3D orientation data. The update is only calculated if the INS is initialized.
@@ -882,6 +939,68 @@ classdef GenericINS < handle
             for j = 1:yDim
                 [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,j), '-');
             end
+
+            % Convert from UPPER cholesky factor to LOWER cholesky factor
+            obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
+        end
+        function UpdateSpeedOverGround(obj, measurement, stdMeasurement, posBody2Sensor)
+            % Do not allow updates of an uninitialized INS
+            if(~obj.initialized)
+                return;
+            end
+
+            % If sigma-points are not up-to-date: generate a new set of sigma-points, else use existing set.
+            if(~obj.spU2D)
+                obj.GenerateSigmaPoints();
+                obj.CalculateDX();
+            end
+
+            % Sigma-points are no longer up-to-date for next Update()-call
+            obj.spU2D = false;
+
+            % Propagate through measurement model
+            Y = zeros(1, GenericINS.NUM_SP);
+            for i = int32(1):GenericINS.NUM_SP
+                state = obj.Xi(1:GenericINS.DIM_X,i);
+                Y(:,i) = GenericINS.SensorModelSpeedOverGround(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor);
+            end
+
+            % Calculate weighted mean of sigma-points
+            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.NUM_SP), 2);
+
+            % Calculate dY = Y - ym
+            dY = (Y - repmat(ym, 1, GenericINS.NUM_SP));
+
+            % Calculate the innovation
+            innovation = measurement - ym;
+
+            % QR decomposition of sigma points: additive SRSSUKF
+            sqrtR = diag(stdMeasurement);
+            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.NUM_SP)) sqrtR]', 0);
+
+            % Cholesky update or downdate (w0 is guaranteed to be positive -> update)
+            Sy_UPPER = cholupdate(Sy_UPPER, obj.srw0 * dY(:,1), '+');
+            Sy = Sy_UPPER';
+
+            % Calculate covariance matrix Pxy
+            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.NUM_SP) * dY(:,int32(2):GenericINS.NUM_SP)';
+
+            % Calculate the Kalman gain matrix
+            K = (Pxy / Sy') / Sy;
+
+            % Get state update dx = K * innovation
+            dx = K * innovation;
+
+            % Update state estimation x = x + dx taking angles and quaternions into account
+            obj.x(1:6) = obj.x(1:6) + dx(1:6);
+            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2));
+            obj.x(7:10) = GenericINS.Qdot(GenericINS.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.DIM_X) = obj.x(11:GenericINS.DIM_X) + dx(10:end);
+
+            % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
+            Sx_UPPER = obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS)';
+            U = K * Sy;
+            [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,1), '-');
 
             % Convert from UPPER cholesky factor to LOWER cholesky factor
             obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
@@ -1253,6 +1372,24 @@ classdef GenericINS < handle
 
             % Finally, transform velocity to sensor frame of the DVL
             y = dcmBody2Sensor * DCM_n2b * v_n;
+        end
+        function y = SensorModelSpeedOverGround(x, omegaEarth, gyrRaw, posIMUBody2Sensor, dcmIMUBody2Sensor, posBody2Sensor)
+            % Direction cosine matrices from current quaternion
+            DCM_b2n = GenericINS.Cb2n(GenericINS.Normalize(x(7:10)));
+            DCM_n2b = DCM_b2n';
+
+            % Angular rate of body with respect to the earth
+            w_ie = omegaEarth * [cos(x(1)); 0; -sin(x(1))];
+            w_eb = dcmIMUBody2Sensor' * (gyrRaw - x(14:16)) - DCM_n2b * w_ie;
+
+            % Additional velocity due to angular speed + sensor alignment in b-frame
+            v_b = cross(w_eb, posBody2Sensor - posIMUBody2Sensor);
+
+            % Transform additional b-frame velocity to n-frame and add current prediction of v_eb (n-frame)
+            v_n = x(4:6) + DCM_b2n * v_b;
+
+            % Speed over ground
+            y = sqrt(v_n(1)*v_n(1) + v_n(2)*v_n(2));
         end
         function y = SensorModelOrientation(x, dcmBody2Sensor)
             % Get attitude from state vector

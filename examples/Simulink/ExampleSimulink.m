@@ -29,6 +29,7 @@
 
 %% PLOT RESULTS
     % Convert geodetic position (lat, lon) to tangential plane (x, y) for small distances
+    % We use a simple transformation, that's enough for visualization
     origin = mean([reference.latitude reference.longitude reference.altitude])';
     s = sin(origin(1));
     invRoot = 1.0 / sqrt(1 - 0.0066943799901410724656084644 * s * s);

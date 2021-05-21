@@ -64,9 +64,13 @@
     output.latitude = nan(numSamples,1);
     output.longitude = nan(numSamples,1);
     fprintf('Running INS:      000 %%');
+    prevPercent = int32(0);
     for k=2:numSamples
         percent = int32(floor(100*k/numSamples));
-        fprintf('\b\b\b\b\b%03d %%',percent);
+        if(percent > prevPercent)
+            prevPercent = percent;
+            fprintf('\b\b\b\b\b%03d %%',percent);
+        end
 
         % Elapsed time to previous IMU measurement
         sampletime = NaN;
@@ -126,6 +130,7 @@
 %% PLOT RESULTS
     fprintf('Plotting results: ');
     % Convert geographic position (lat, lon) to tangential plane (x, y) for small distances
+    % We use a simple transformation, that's enough for visualization
     origin = mean([reference.latitude reference.longitude reference.altitude])';
     s = sin(origin(1));
     invRoot = 1.0 / sqrt(1 - 0.0066943799901410724656084644 * s * s);
