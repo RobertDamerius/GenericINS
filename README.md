@@ -32,7 +32,7 @@ In addition, some extensions have been added so that quaternions and angles are 
 
 
 ## Getting Started
-To use the MATLAB package and the Simulink library add the [lib](lib/) and [package](package/) directory to the MATLAB path.
+To use the MATLAB package and the Simulink library add the [lib](lib/) and [packages](packages/) directory to the MATLAB path.
 Take a look to the [examples](examples/).
 
 
