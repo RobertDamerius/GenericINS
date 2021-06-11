@@ -6,15 +6,16 @@
 % 20181008    Robert Damerius        Initial release.
 % 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
 % 20210222    Robert Damerius        SymmetricalAngle() function now uses pi again.
+% 20210611    Robert Damerius        The SRSSUKF is now part of the GenericINS package.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % 
 % 
 %SRSSUKF Square-root spherical simplex unscented kalman filter
 % This class can be used for state estimation using nonlinear process and/or measurement models. Use the constructor to setup
-% a square-root SSUKF (See SRSSUKF.SRSSUKF). Once you created the object, call the SRSSUKF.Initialize member function to set an initial
-% state and square-root covariance. Then you can use the SRSSUKF.Predict member function for time-update and the
-% SRSSUKF.Update member function for measurement updates. It is possible to call the SRSSUKF.Update member function several times
+% a square-root SSUKF (See GenericINS.SRSSUKF.SRSSUKF). Once you created the object, call the GenericINS.SRSSUKF.Initialize member function to set an initial
+% state and square-root covariance. Then you can use the GenericINS.SRSSUKF.Predict member function for time-update and the
+% GenericINS.SRSSUKF.Update member function for measurement updates. It is possible to call the GenericINS.SRSSUKF.Update member function several times
 % one after another (sequential sensor method). The state can contain one or more unit quaternions and/or angles. An observation
 % can contain one or more angles.
 % 
@@ -27,7 +28,7 @@
 % idxQ = [];     % no quaternions in x
 % yDim = {1, 1}; % Two sensors yDim1 = 1, yDim2 = 1
 % vDim = {1, 1}; % Two sensors vDim1 = 1, vDim2 = 1
-% filter = SRSSUKF(w0, xDim, wDim, idxA, idxQ, yDim, vDim);
+% filter = GenericINS.SRSSUKF(w0, xDim, wDim, idxA, idxQ, yDim, vDim);
 % 
 % % Initialize filter
 % x0 = [0; 0];
@@ -57,7 +58,7 @@
 classdef SRSSUKF < handle
     methods
         function obj = SRSSUKF(w0, xDim, wDim, xIdxAngle, xIdxQuaternion, cyDim, cvDim)
-            %SRSSUKF.SRSSUKF Create a square-root spherical simplex unscented kalman filter.
+            %GenericINS.SRSSUKF.SRSSUKF Create a square-root spherical simplex unscented kalman filter.
             % 
             % PARAMETERS
             % w0             ... Scalar weighting factor for 0-th sigma-point, range: [0;1).
@@ -201,7 +202,7 @@ classdef SRSSUKF < handle
             obj.spU2D = false;
         end
         function Initialize(obj, x0, S0)
-            %SRSSUKF.Initialize Initialize the estimator using an initial state x0 and an initial square-root covariance S0.
+            %GenericINS.SRSSUKF.Initialize Initialize the estimator using an initial state x0 and an initial square-root covariance S0.
             % 
             % PARAMETERS
             % x0 ... Nx1 initial state vector with N being the dimension of the non-augmented state vector x.
@@ -221,7 +222,7 @@ classdef SRSSUKF < handle
             obj.spU2D = false;
         end
         function state = Predict(obj, funcProc, Ts, u, sqrtQ, optArg)
-            %SRSSUKF.Predict Perform a prediction (time-update) step.
+            %GenericINS.SRSSUKF.Predict Perform a prediction (time-update) step.
             % 
             % PARAMETERS
             % funcProc ... The discrete-time (non)-linear process model with a function prototype: x = f(x, w, u, Ts, optArg). w will be a zero vector of
@@ -269,7 +270,7 @@ classdef SRSSUKF < handle
             obj.S(1:obj.nxS,1:obj.nxS) = Sx_UPPER';
         end
         function [state, innovation] = Update(obj, funcObsv, idx, y, idxAngle, sqrtR, optArg)
-            %SRSSUKF.Update Perform a measurement-update step.
+            %GenericINS.SRSSUKF.Update Perform a measurement-update step.
             % 
             % PARAMETERS
             % funcObsv   ... The discrete-time (non)-linear observation model with a function prototype: y = h(x, v, optArg). v will be a zero vector of size y
@@ -330,7 +331,7 @@ classdef SRSSUKF < handle
             % Get pivot angle from 0-th Y sigma-point and remove this angle from all sigma-points
             pivotAngle = Y(idxAngle,1);
             if ~isempty(idxAngle)
-                Y(idxAngle,:) = SRSSUKF.SymmetricalAngle(Y(idxAngle,:) - repmat(pivotAngle, 1, obj.numSP));
+                Y(idxAngle,:) = GenericINS.SRSSUKF.SymmetricalAngle(Y(idxAngle,:) - repmat(pivotAngle, 1, obj.numSP));
             end
 
             % Calculate weighted mean of sigma-points
@@ -341,13 +342,13 @@ classdef SRSSUKF < handle
 
             % Add pivot angle to mean value
             if ~isempty(idxAngle)
-                ym(idxAngle) = SRSSUKF.SymmetricalAngle(ym(idxAngle) + pivotAngle);
+                ym(idxAngle) = GenericINS.SRSSUKF.SymmetricalAngle(ym(idxAngle) + pivotAngle);
             end
 
             % Calculate the innovation
             innovation = y - ym;
             if ~isempty(idxAngle)
-                innovation(idxAngle) = SRSSUKF.SymmetricalAngle(innovation(idxAngle));
+                innovation(idxAngle) = GenericINS.SRSSUKF.SymmetricalAngle(innovation(idxAngle));
             end
 
             % QR decomposition of sigma points: augmented state or additive SRSSUKF
@@ -391,10 +392,10 @@ classdef SRSSUKF < handle
                 end
                 if isQuaternion
                     % Convert orientation vector components of dx to quaternion
-                    qdx = SRSSUKF.OV2Q(dx(rowdx:(rowdx+2)));
+                    qdx = GenericINS.SRSSUKF.OV2Q(dx(rowdx:(rowdx+2)));
 
                     % Update quaternion state using quat. product
-                    obj.x(rowx:(rowx+3)) = SRSSUKF.Qdot(qdx, obj.x(rowx:(rowx+3)));
+                    obj.x(rowx:(rowx+3)) = GenericINS.SRSSUKF.Qdot(qdx, obj.x(rowx:(rowx+3)));
 
                     % Update indices
                     rowx = rowx + 4;
@@ -403,7 +404,7 @@ classdef SRSSUKF < handle
                     % Straight forward for usual state
                     obj.x(rowx) = obj.x(rowx) + dx(rowdx);
                     if isAngle
-                        obj.x(rowx) = SRSSUKF.SymmetricalAngle(obj.x(rowx));
+                        obj.x(rowx) = GenericINS.SRSSUKF.SymmetricalAngle(obj.x(rowx));
                     end
 
                     % Update indices
@@ -425,14 +426,14 @@ classdef SRSSUKF < handle
             obj.S(1:obj.nxS,1:obj.nxS) = Sx_UPPER';
         end
         function state = GetState(obj)
-            %SRSSUKF.GetState Get the current state estimation.
+            %GenericINS.SRSSUKF.GetState Get the current state estimation.
             % 
             % RETURN
             % state ... Nx1 vector of the current state estimation with N being the dimension of the non-augmented state.
             state = obj.x(1:obj.nx);
         end
         function Sx = GetSqrtCovariance(obj)
-            %SRSSUKF.GetSqrtCovariance Get the square-root of the covariance matrix.
+            %GenericINS.SRSSUKF.GetSqrtCovariance Get the square-root of the covariance matrix.
             % 
             % RETURN
             % Sx ... NxN square-root state covariance matrix with N being the dimension of the non-augmented state. Note that quaternion-components are replaced
@@ -440,7 +441,7 @@ classdef SRSSUKF < handle
             Sx = obj.S(1:obj.nxS,1:obj.nxS);
         end
         function Px = GetCovariance(obj)
-            %SRSSUKF.GetCovariance Get the covariance matrix.
+            %GenericINS.SRSSUKF.GetCovariance Get the covariance matrix.
             % 
             % RETURN
             % Px ... NxN state covariance matrix with N being the dimension of the non-augmented state. Note that quaternion-components are replaced by
@@ -448,7 +449,7 @@ classdef SRSSUKF < handle
             Px = obj.S(1:obj.nxS,1:obj.nxS) * obj.S(1:obj.nxS,1:obj.nxS)';
         end
         function SetSqrtQ(obj, sqrtQ)
-            %SRSSUKF.SetSqrtQ Set square-root of process covariance Q.
+            %GenericINS.SRSSUKF.SetSqrtQ Set square-root of process covariance Q.
             % 
             % PARAMETERS
             % sqrtQ ... wDim x wDim matrix, LOWER Cholesky factor of process covariance Q.
@@ -460,7 +461,7 @@ classdef SRSSUKF < handle
             obj.S((obj.nxS+1):(obj.nxS+obj.nw),(obj.nxS+1):(obj.nxS+obj.nw)) = sqrtQ;
         end
         function SetSqrtR(obj, idx, sqrtR)
-            %SRSSUKF.SetSqrtR Set square-root of observation covariance R.
+            %GenericINS.SRSSUKF.SetSqrtR Set square-root of observation covariance R.
             % 
             % PARAMETERS
             % idx   ... The index of the sensor. The dimensions of observation y and noise v are given by the cell arrays cyDim and cvDim that have been set by
@@ -486,7 +487,7 @@ classdef SRSSUKF < handle
     end
     methods(Static)
         function y = SymmetricalAngle(x)
-            %SRSSUKF.SymmetricalAngle Convert a given angle x [rad] to an output angle y [rad] with y being in range [-pi, +pi).
+            %GenericINS.SRSSUKF.SymmetricalAngle Convert a given angle x [rad] to an output angle y [rad] with y being in range [-pi, +pi).
             % 
             % PARAMETERS
             % x ... Input angle in radians, either scalar or n-dimensional.
@@ -498,7 +499,7 @@ classdef SRSSUKF < handle
             y = x + pi2 * (double(x < -pi) - double(x >= pi));
         end
         function Q = OV2Q(OV)
-            %SRSSUKF.OV2Q Convert an orientation vector to a unit quaternion.
+            %GenericINS.SRSSUKF.OV2Q Convert an orientation vector to a unit quaternion.
             % 
             % PARAMETERS
             % ov ... 3xN matrix containing orientation vectors.
@@ -522,7 +523,7 @@ classdef SRSSUKF < handle
             end
         end
         function OV = Q2OV(Q)
-            %SRSSUKF.Q2OV Convert a unit quaternion to an orientation vector. The input quaternion will be normalized.
+            %GenericINS.SRSSUKF.Q2OV Convert a unit quaternion to an orientation vector. The input quaternion will be normalized.
             % 
             % PARAMETERS
             % q ... 4xN matrix of unit quaternions, will be normalized.
@@ -546,7 +547,7 @@ classdef SRSSUKF < handle
             end
         end
         function Y = Qdot(Q, r)
-            %SRSSUKF.Qdot Calculate the quaternion multiplication for two unit quaternions Q and r. The output quaternion will be a unit quaternion.
+            %GenericINS.SRSSUKF.Qdot Calculate the quaternion multiplication for two unit quaternions Q and r. The output quaternion will be a unit quaternion.
             % 
             % PARAMETERS
             % Q ... 4xN Matrix of normalized unit quaternions (left hand side).
@@ -585,7 +586,7 @@ classdef SRSSUKF < handle
                     if isQuaternion, break; end
                 end
                 if isQuaternion
-                    SZq(rowSZq:(rowSZq+3),:) = SRSSUKF.OV2Q(SZ(rowSZ:(rowSZ+2),:));
+                    SZq(rowSZq:(rowSZq+3),:) = GenericINS.SRSSUKF.OV2Q(SZ(rowSZ:(rowSZ+2),:));
                     rowSZq = rowSZq + 4;
                     rowSZ = rowSZ + 3;
                 else
@@ -606,7 +607,7 @@ classdef SRSSUKF < handle
                     if isQuaternion, break; end
                 end
                 if isQuaternion
-                    obj.Xi(row:(row+3),2:end) = SRSSUKF.Qdot(SZq(row:(row+3),:),obj.x(row:(row+3)));
+                    obj.Xi(row:(row+3),2:end) = GenericINS.SRSSUKF.Qdot(SZq(row:(row+3),:),obj.x(row:(row+3)));
                     row = row + 4;
                 else
                     obj.Xi(row, 2:end) = repmat(obj.x(row),1,(obj.numSP-1)) + SZq(row,:);
@@ -620,7 +621,7 @@ classdef SRSSUKF < handle
             % Get the pivot angle from 0-th sigma point and remove this angle from all sigma points
             pivotAngle = obj.Xi(obj.idxAngle,1);
             if ~isempty(obj.idxAngle)
-                obj.Xi(obj.idxAngle,:) = SRSSUKF.SymmetricalAngle(obj.Xi(obj.idxAngle,:) - repmat(pivotAngle, 1, obj.numSP));
+                obj.Xi(obj.idxAngle,:) = GenericINS.SRSSUKF.SymmetricalAngle(obj.Xi(obj.idxAngle,:) - repmat(pivotAngle, 1, obj.numSP));
             end
 
             % Calculate weighted mean of sigma points (barycentric mean for quaternion part)
@@ -648,10 +649,10 @@ classdef SRSSUKF < handle
                     q_inv = [obj.x(rowXi); -obj.x((rowXi+1):(rowXi+3))];
 
                     % Use quaternion multiplication for dX=Xi-x
-                    dXq = SRSSUKF.Qdot(obj.Xi(rowXi:(rowXi+3),:), q_inv);
+                    dXq = GenericINS.SRSSUKF.Qdot(obj.Xi(rowXi:(rowXi+3),:), q_inv);
 
                     % Convert quaternion to orientation vector components
-                    obj.dX(rowdX:(rowdX+2),:) = SRSSUKF.Q2OV(dXq);
+                    obj.dX(rowdX:(rowdX+2),:) = GenericINS.SRSSUKF.Q2OV(dXq);
 
                     % Update indices
                     rowXi = rowXi + 4;
@@ -660,7 +661,7 @@ classdef SRSSUKF < handle
                     % Straight forward for usual state
                     obj.dX(rowdX,:) = obj.Xi(rowXi,:) - repmat(obj.x(rowXi),1,obj.numSP);
                     if isAngle
-                        obj.dX(rowdX,:) = SRSSUKF.SymmetricalAngle(obj.dX(rowdX,:));
+                        obj.dX(rowdX,:) = GenericINS.SRSSUKF.SymmetricalAngle(obj.dX(rowdX,:));
                     end
 
                     % Update indices
@@ -672,8 +673,8 @@ classdef SRSSUKF < handle
 
             % Add pivot angle to state (and also sigma-points for an upcomming measurement update)
             if ~isempty(obj.idxAngle)
-                obj.x(obj.idxAngle) = SRSSUKF.SymmetricalAngle(obj.x(obj.idxAngle) + pivotAngle);
-                obj.Xi(obj.idxAngle,:) = SRSSUKF.SymmetricalAngle(obj.Xi(obj.idxAngle,:) + repmat(pivotAngle, 1, obj.numSP));
+                obj.x(obj.idxAngle) = GenericINS.SRSSUKF.SymmetricalAngle(obj.x(obj.idxAngle) + pivotAngle);
+                obj.Xi(obj.idxAngle,:) = GenericINS.SRSSUKF.SymmetricalAngle(obj.Xi(obj.idxAngle,:) + repmat(pivotAngle, 1, obj.numSP));
             end
         end
     end

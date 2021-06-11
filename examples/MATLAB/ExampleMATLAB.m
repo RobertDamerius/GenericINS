@@ -1,7 +1,7 @@
 %% INITIALIZATION
     % Add source path and load example data
     clear all;
-    addpath(['..' filesep '..' filesep 'source']);
+    addpath(['..' filesep '..' filesep 'packages']);
     load(['..' filesep 'SensorData.mat']);
     input.imu.timestamp  = sensor.imu.timestamp;
     input.imu.data       = [sensor.imu.accelerationX sensor.imu.accelerationY sensor.imu.accelerationZ sensor.imu.angularRateX sensor.imu.angularRateY sensor.imu.angularRateZ];
@@ -12,10 +12,11 @@
     input.ahrs.timestamp = sensor.ahrs.timestamp;
     input.ahrs.data      = [sensor.ahrs.roll sensor.ahrs.pitch sensor.ahrs.yaw];
 
-    % Generate generic INS object.
-    ins = GenericINS();
+    % Generate generic INS object
+    ins = GenericINS.SensorFusion();
 
     % We need to specify sensor configurations, that is sensor alignment and sensor characteristics, let's use a struct to store those parameters
+    % Note: the parameters are not optimized
     config.imu.positionBody2Sensor  = [1.032;-0.5;1.564];
     config.imu.dcmBody2Sensor       = eye(3);
     config.imu.stdAcc               = 0.0014142135623731 * ones(3,1);

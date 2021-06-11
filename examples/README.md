@@ -7,7 +7,7 @@ The vehicle is equipped with the following sensors:
 - Attitude-Heading Reference System (AHRS)
 
 There are two ways to run the example - either MATLAB or Simulink.
-Make sure your MATLAB/Simulink version is at least R2018b.
+Make sure your MATLAB/Simulink version is at least R2020b.
 The MATLAB example may also work with previous versions.
 However, it is recommended to run the Simulink example as this is much faster than the MATLAB example.
 
@@ -16,4 +16,8 @@ Simply run the `ExampleMATLAB.m` script in the MATLAB directory.
 
 **Simulink Example**<br>
 Simply run the `ExampleSimulink.m` script in the Simulink directory.
+This example uses the Simulink library which contains a sensor fusion algorithm for up to 20 sensors.
+For most applications, the number of different sensors used by this algorithm is sufficient.
+If this number of predefined sensors does not fit your application, you can generate an embeded MATLAB function yourself.
+In this case take a look to the SensorFusion MATLAB class in the [package](../packages/+GenericINS/) directory.
 

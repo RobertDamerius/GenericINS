@@ -1,7 +1,7 @@
 %% INITIALIZATION
     % Add source path and load data
     clear all;
-    addpath(['..' filesep '..' filesep 'source']);
+    addpath(['..' filesep '..' filesep 'packages']);
     load(['..' filesep 'SensorData.mat']);
     input = [sensor.imu.timestamp sensor.imu.accelerationX sensor.imu.accelerationY sensor.imu.accelerationZ sensor.imu.angularRateX sensor.imu.angularRateY sensor.imu.angularRateZ, ...
              sensor.gnss.timestamp sensor.gnss.latitude sensor.gnss.longitude sensor.gnss.altitude, ...

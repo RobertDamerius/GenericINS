@@ -1,4 +1,4 @@
-% GenericINS.m
+% SensorFusion.m
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % Version     Author                 Changes
@@ -9,12 +9,13 @@
 % 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
 % 20210209    Robert Damerius        Added output for estimated inertial sensor bias.
 % 20210521    Robert Damerius        Added measurement update for speed-over-ground data. Added return value for internal state and sqrt of covariance matrix for generated function.
+% 20210611    Robert Damerius        The class has been renamed to SensorFusion and is now part of the GenericINS package. Added filter timeout for auto-generated functions. At least one prediction is required after the initialization to make the filter valid again.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-classdef GenericINS < handle
+classdef SensorFusion < handle
     methods(Static)
         function code = GenerateFunction(functionName, positionMeasurements, velocityMeasurements, orientationMeasurements, numSOGMeasurements)
-            %GenericINS.GenerateFunction Generate a MATLAB function that implements a complete INS algorithm for a specific sensor configuration.
+            %GenericINS.SensorFusion.GenerateFunction Generate a MATLAB function that implements a complete INS algorithm for a specific sensor configuration.
             % 
             % PARAMETERS
             % functionName            ... The name of the function. The function will be saved as [functionName '.m'].
@@ -46,10 +47,10 @@ classdef GenericINS < handle
             positionMeasurements = reshape(positionMeasurements, int32(1), numPositionMeasurements);
             velocityMeasurements = reshape(velocityMeasurements, int32(1), numVelocityMeasurements);
             orientationMeasurements = reshape(orientationMeasurements, int32(1), numOrientationMeasurements);
-            assert(0 == (sum(positionMeasurements < 1) + sum(positionMeasurements > 3)), 'GenericINS.GenerateFunction(): "positionMeasurements" must only contain integer values {1, 2, 3}!');
-            assert(0 == (sum(velocityMeasurements < 1) + sum(velocityMeasurements > 3)), 'GenericINS.GenerateFunction(): "velocityMeasurements" must only contain integer values {1, 2, 3}!');
-            assert(0 == (sum(orientationMeasurements < 1) + sum(orientationMeasurements > 3)), 'GenericINS.GenerateFunction(): "orientationMeasurements" must only contain integer values {1, 2, 3}!');
-            assert(isscalar(numSOGMeasurements), 'GenericINS.GenerateFunction(): "numSOGMeasurements" must be scalar!');
+            assert(0 == (sum(positionMeasurements < 1) + sum(positionMeasurements > 3)), 'GenericINS.SensorFusion.GenerateFunction(): "positionMeasurements" must only contain integer values {1, 2, 3}!');
+            assert(0 == (sum(velocityMeasurements < 1) + sum(velocityMeasurements > 3)), 'GenericINS.SensorFusion.GenerateFunction(): "velocityMeasurements" must only contain integer values {1, 2, 3}!');
+            assert(0 == (sum(orientationMeasurements < 1) + sum(orientationMeasurements > 3)), 'GenericINS.SensorFusion.GenerateFunction(): "orientationMeasurements" must only contain integer values {1, 2, 3}!');
+            assert(isscalar(numSOGMeasurements), 'GenericINS.SensorFusion.GenerateFunction(): "numSOGMeasurements" must be scalar!');
 
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -60,9 +61,10 @@ classdef GenericINS < handle
 
             % Default arguments
             docs = ['    %%' functionName ' Generated MATLAB function for a generic inertial navigation system (' num2str(numPositionMeasurements) ' position measurements, ' num2str(numVelocityMeasurements) ' velocity measurements, ' num2str(numOrientationMeasurements) ' orientation measurements).\n'];
-            docs = [docs '    %% This function was automatically generated using the command GenericINS.GenerateFunction(''' functionName ''', [' num2str(positionMeasurements) '], [' num2str(velocityMeasurements) '], [' num2str(orientationMeasurements) '], ' num2str(numSOGMeasurements) ').\n'];
+            docs = [docs '    %% This function was automatically generated using the command GenericINS.SensorFusion.GenerateFunction(''' functionName ''', [' num2str(positionMeasurements) '], [' num2str(velocityMeasurements) '], [' num2str(orientationMeasurements) '], ' num2str(numSOGMeasurements) ').\n'];
             docs = [docs '    %% \n'];
             docs = [docs '    %% PARAMETERS\n'];
+            docs = [docs '    %% time                       ... A scalar value indicating a monotonically increasing time in seconds.\n'];
             docs = [docs '    %% initialState               ... 15-by-1 initial state vector to be used when the INS is reset. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: latitude     [rad]     Initial latitude of the position of the IMU.\n'];
             docs = [docs '    %%                                 2: longitude    [rad]     Initial longitude of the position of the IMU.\n'];
@@ -112,7 +114,7 @@ classdef GenericINS < handle
             docs = [docs '    %%                                 3: accZ         [m/(s*s)] Standard deviation for acceleration in z-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 4: gyrX         [rad/s]   Standard deviation for angular rate around x-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 5: gyrY         [rad/s]   Standard deviation for angular rate around y-axis of IMU sensor frame.\n'];
-            docs = [docs '    %%                                    6: gyrZ         [rad/s]   Standard deviation for angular rate around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 6: gyrZ         [rad/s]   Standard deviation for angular rate around z-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 7: biasAccX     [m/(s*s)] Standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 8: biasAccY     [m/(s*s)] Standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 9: biasAccZ     [m/(s*s)] Standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
@@ -313,9 +315,10 @@ classdef GenericINS < handle
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate the final function code
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias, internalX, internalS] = ' functionName '(' args ')\n' docs '\n'];
-            code = [code '    assert((15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
-            code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS(); end\n'];
+            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias, internalX, internalS] = ' functionName '(time, ' args ')\n' docs '\n'];
+            code = [code '    assert(isscalar(time) && (15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
+            code = [code '    persistent prevTime; if(isempty(prevTime)), prevTime = time; end\n'];
+            code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS.SensorFusion(); end\n'];
             code = [code '    persistent imuStdDevBuffer; if(isempty(imuStdDevBuffer)), imuStdDevBuffer = IMU_StdDev; end\n\n'];
             code = [code varCodeSectionA '\n'];
             code = [code '    imuStdDevChanged = (sum(abs(imuStdDevBuffer - IMU_StdDev) > 100*eps) > 0.0);\n'];
@@ -328,14 +331,22 @@ classdef GenericINS < handle
             code = [code '    numPredictions = int32(0);\n'];
             code = [code '    numUpdates = int32(0);\n'];
             code = [code '    if(IMU_Data(1) > 0.0)\n'];
+            code = [code '        prevTime = time;\n\n'];
             code = [code '        %% Motion prediction\n'];
             code = [code '        numPredictions = int32(1);\n'];
             code = [code '        ins.Predict(IMU_Data(2:7), sampletime, IMU_DCMBody2Sensor, IMU_PositionBody2Sensor);\n\n'];
             code = [code '        %% Sensor updates\n'];
             code = [code varCodeSectionB];
-            code = [code '    end\n'];
+            code = [code '    end\n\n'];
+            code = [code '    %% Check for timeout\n'];
+            code = [code '    if((time - prevTime) > 0.2)\n'];
+            code = [code '        ins.MakeInvalid();\n'];
+            code = [code '    end\n\n'];
+            code = [code '    %% Set output values\n'];
             code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();\n'];
             code = [code '    [internalX, internalS] = ins.GetInternalState();\n'];
+            code = [code '    internalX = reshape(internalX, [16 1]);\n'];
+            code = [code '    internalS = reshape(internalS, [15 15]);\n'];
             code = [code 'end\n\n'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -343,19 +354,20 @@ classdef GenericINS < handle
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             filename = [functionName '.m'];
             fileID = fopen(filename,'w');
-            assert(-1 ~= fileID, ['GenericINS.GenerateFunction(): Could not open file "' filename '"!']);
+            assert(-1 ~= fileID, ['GenericINS.SensorFusion.GenerateFunction(): Could not open file "' filename '"!']);
             fprintf(fileID, code);
             fclose(fileID);
         end
     end
     methods
-        function obj = GenericINS()
+        function obj = SensorFusion()
             % Initialize private properties
             obj.initialized = false;
-            obj.x = zeros(GenericINS.DIM_L, 1);
-            obj.S = zeros(GenericINS.DIM_LS);
-            obj.Xi = zeros(GenericINS.DIM_L, GenericINS.NUM_SP);
-            obj.dX = zeros(GenericINS.DIM_XS, GenericINS.NUM_SP);
+            obj.firstPrediction = false;
+            obj.x = zeros(GenericINS.SensorFusion.DIM_L, 1);
+            obj.S = zeros(GenericINS.SensorFusion.DIM_LS);
+            obj.Xi = zeros(GenericINS.SensorFusion.DIM_L, GenericINS.SensorFusion.NUM_SP);
+            obj.dX = zeros(GenericINS.SensorFusion.DIM_XS, GenericINS.SensorFusion.NUM_SP);
             obj.spU2D = false;
             obj.gyrRaw = zeros(3, 1);
             obj.dcmIMUBody2Sensor = eye(3);
@@ -365,17 +377,17 @@ classdef GenericINS < handle
             obj.Re = 0.0;
             obj.localGravity = 0.0;
             obj.w0 = 0.1;
-            obj.wi = (1.0 - obj.w0) / (double(GenericINS.DIM_LS) + 1.0);
+            obj.wi = (1.0 - obj.w0) / (double(GenericINS.SensorFusion.DIM_LS) + 1.0);
             obj.srw0 = sqrt(obj.w0);
             obj.srwi = sqrt(obj.wi);
 
             % Initialize vector sequence for weighting matrix Z
-            obj.Z = zeros(GenericINS.DIM_LS, GenericINS.NUM_SP);
+            obj.Z = zeros(GenericINS.SensorFusion.DIM_LS, GenericINS.SensorFusion.NUM_SP);
             obj.Z(1,3) = 1.0 / sqrt(2.0 * obj.wi);
             obj.Z(1,2) = -obj.Z(1,3);
 
             % Expand vector sequence
-            for j = int32(2):GenericINS.DIM_LS
+            for j = int32(2):GenericINS.SensorFusion.DIM_LS
                 s = 1.0 / sqrt(double(j * (j + 1)) * obj.wi);
                 obj.Z(j, j + 2) = double(j) * s;
                 for k = int32(2):(j + 1)
@@ -384,7 +396,7 @@ classdef GenericINS < handle
             end
         end
         function Initialize(obj, initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, stdAcc, stdGyr, stdAccBias, stdGyrBias)
-            %GenericINS.Initialize Initialize or re-initialize the INS.
+            %GenericINS.SensorFusion.Initialize Initialize or re-initialize the INS.
             % 
             % PARAMETERS
             % initialPositionLLA             ... Initial geographic position at the location of the IMU, [lat (rad); lon (rad); alt (m, positive upwards)].
@@ -401,23 +413,23 @@ classdef GenericINS < handle
             % stdGyr                         ... Standard deviation for angular rate in rad/s to be used for motion prediction.
             % stdAccBias                     ... Standard deviation for acceleration bias in m/s^2 to be used for motion prediction.
             % stdGyrBias                     ... Standard deviation for angular rate bias in rad/s to be used for motion prediction.
-            assert((3 == size(initialPositionLLA,1)) && (1 == size(initialPositionLLA,2)) && isa(initialPositionLLA, 'double'), 'GenericINS.Initialize(): "initialPositionLLA" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialVelocityUVW,1)) && (1 == size(initialVelocityUVW,2)) && isa(initialVelocityUVW, 'double'), 'GenericINS.Initialize(): "initialVelocityUVW" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialOrientationRollPitchYaw,1)) && (1 == size(initialOrientationRollPitchYaw,2)) && isa(initialOrientationRollPitchYaw, 'double'), 'GenericINS.Initialize(): "initialOrientationRollPitchYaw" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialBiasAcc,1)) && (1 == size(initialBiasAcc,2)) && isa(initialBiasAcc, 'double'), 'GenericINS.Initialize(): "initialBiasAcc" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialBiasGyr,1)) && (1 == size(initialBiasGyr,2)) && isa(initialBiasGyr, 'double'), 'GenericINS.Initialize(): "initialBiasGyr" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdPositionLLA,1)) && (1 == size(initialStdPositionLLA,2)) && isa(initialStdPositionLLA, 'double'), 'GenericINS.Initialize(): "initialStdPositionLLA" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdVelocityUVW,1)) && (1 == size(initialStdVelocityUVW,2)) && isa(initialStdVelocityUVW, 'double'), 'GenericINS.Initialize(): "initialStdVelocityUVW" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdOrientationVector,1)) && (1 == size(initialStdOrientationVector,2)) && isa(initialStdOrientationVector, 'double'), 'GenericINS.Initialize(): "initialStdOrientationVector" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdBiasAcc,1)) && (1 == size(initialStdBiasAcc,2)) && isa(initialStdBiasAcc, 'double'), 'GenericINS.Initialize(): "initialStdBiasAcc" must be a 3-by-1 vector of type double!');
-            assert((3 == size(initialStdBiasGyr,1)) && (1 == size(initialStdBiasGyr,2)) && isa(initialStdBiasGyr, 'double'), 'GenericINS.Initialize(): "initialStdBiasGyr" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.Initialize(): "stdAcc" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.Initialize(): "stdGyr" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.Initialize(): "stdAccBias" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.Initialize(): "stdGyrBias" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialPositionLLA,1)) && (1 == size(initialPositionLLA,2)) && isa(initialPositionLLA, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialPositionLLA" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialVelocityUVW,1)) && (1 == size(initialVelocityUVW,2)) && isa(initialVelocityUVW, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialVelocityUVW" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialOrientationRollPitchYaw,1)) && (1 == size(initialOrientationRollPitchYaw,2)) && isa(initialOrientationRollPitchYaw, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialOrientationRollPitchYaw" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialBiasAcc,1)) && (1 == size(initialBiasAcc,2)) && isa(initialBiasAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialBiasAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialBiasGyr,1)) && (1 == size(initialBiasGyr,2)) && isa(initialBiasGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialBiasGyr" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdPositionLLA,1)) && (1 == size(initialStdPositionLLA,2)) && isa(initialStdPositionLLA, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdPositionLLA" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdVelocityUVW,1)) && (1 == size(initialStdVelocityUVW,2)) && isa(initialStdVelocityUVW, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdVelocityUVW" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdOrientationVector,1)) && (1 == size(initialStdOrientationVector,2)) && isa(initialStdOrientationVector, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdOrientationVector" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdBiasAcc,1)) && (1 == size(initialStdBiasAcc,2)) && isa(initialStdBiasAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdBiasAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdBiasGyr,1)) && (1 == size(initialStdBiasGyr,2)) && isa(initialStdBiasGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdBiasGyr" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdGyr" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdAccBias" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdGyrBias" must be a 3-by-1 vector of type double!');
 
             % Initial position
-            [lat, lon] = GenericINS.LatLon(initialPositionLLA(1), initialPositionLLA(2));
+            [lat, lon] = GenericINS.SensorFusion.LatLon(initialPositionLLA(1), initialPositionLLA(2));
             obj.x(1) = lat;
             obj.x(2) = lon;
             obj.x(3) = initialPositionLLA(3);
@@ -435,7 +447,7 @@ classdef GenericINS < handle
 			obj.x(7:10) = [c1*c2*c3 + s1*s2*s3; s1*c2*c3 - c1*s2*s3; c1*s2*c3 + s1*c2*s3; c1*c2*s3 - s1*s2*c3];
 
             % Initial velocity
-            DCM_b2n = GenericINS.Cb2n(obj.x(7:10));
+            DCM_b2n = GenericINS.SensorFusion.Cb2n(obj.x(7:10));
             obj.x(4:6) = DCM_b2n * initialVelocityUVW;
 
             % Initial inertial biases
@@ -446,64 +458,66 @@ classdef GenericINS < handle
             obj.S = diag([initialStdPositionLLA; DCM_b2n * initialStdVelocityUVW; initialStdOrientationVector; initialStdBiasAcc; initialStdBiasGyr; stdAcc; stdGyr; stdAccBias; stdGyrBias]);
 
             % Initialize additional INS properties
-            [obj.omegaEarth, obj.Rn, obj.Re, R0] = GenericINS.WGS84(obj.x(1));
-            obj.localGravity = GenericINS.Gravity(obj.x(3), obj.x(1), R0);
+            [obj.omegaEarth, obj.Rn, obj.Re, R0] = GenericINS.SensorFusion.WGS84(obj.x(1));
+            obj.localGravity = GenericINS.SensorFusion.Gravity(obj.x(3), obj.x(1), R0);
             obj.spU2D = false;
             obj.gyrRaw = zeros(3,1);
             obj.initialized = true;
+            obj.firstPrediction = false;
         end
         function ResetInertialStandardDeviation(obj, stdAcc, stdGyr, stdAccBias, stdGyrBias)
-            %GenericINS.ResetInertialStandardDeviation Reset the standard deviations for the inertial sensors.
+            %GenericINS.SensorFusion.ResetInertialStandardDeviation Reset the standard deviations for the inertial sensors.
             % 
             % PARAMETERS
             % stdAcc            ... Standard deviation for acceleration in m/s^2.
             % stdGyr            ... Standard deviation for angular rate in rad/s.
             % stdAccBias        ... Standard deviation for acceleration bias in m/s^2.
             % stdGyrBias        ... Standard deviation for angular rate bias in rad/s.
-            assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.Predict(): "stdAcc" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.Predict(): "stdGyr" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.Predict(): "stdAccBias" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.Predict(): "stdGyrBias" must be a 3-by-1 vector of type double!');
-            obj.S((GenericINS.DIM_XS + int32(1)):end,(GenericINS.DIM_XS + int32(1)):end) = diag([stdAcc; stdGyr; stdAccBias; stdGyrBias]);
+            assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.SensorFusion.Predict(): "stdAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.SensorFusion.Predict(): "stdGyr" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.SensorFusion.Predict(): "stdAccBias" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.SensorFusion.Predict(): "stdGyrBias" must be a 3-by-1 vector of type double!');
+            obj.S((GenericINS.SensorFusion.DIM_XS + int32(1)):end,(GenericINS.SensorFusion.DIM_XS + int32(1)):end) = diag([stdAcc; stdGyr; stdAccBias; stdGyrBias]);
         end
         function Predict(obj, imuData, sampletime, dcmIMUBody2Sensor, posIMUBody2Sensor)
-            %GenericINS.Predict Perform a prediction step using inertial measurements. The prediction is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.Predict Perform a prediction step using inertial measurements. The prediction is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % imuData           ... Inertial measurement data vector: [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)]
             % sampletime        ... Discrete sampletime in seconds to be used for forward euler integration. Should be the elapsed time to the latest prediction.
             % dcmIMUBody2Sensor ... Direction cosine matrix to rotate measurements from body frame to sensor frame.
             % posIMUBody2Sensor ... Position of IMU sensor frame origin w.r.t. body frame origin in body frame coordinates (meters).
-            assert((6 == size(imuData,1)) && (1 == size(imuData,2)) && isa(imuData, 'double'), 'GenericINS.Predict(): "imuData" must be a 6-by-1 vector of type double!');
-            assert(isscalar(sampletime) && isa(sampletime, 'double'), 'GenericINS.Predict(): "sampletime" must be a scalar of type double!');
-            assert((3 == size(dcmIMUBody2Sensor,1)) && (3 == size(dcmIMUBody2Sensor,2)) && isa(dcmIMUBody2Sensor, 'double'), 'GenericINS.Predict(): "dcmIMUBody2Sensor" must be a 3-by-3 matrix of type double!');
-            assert((3 == size(posIMUBody2Sensor,1)) && (1 == size(posIMUBody2Sensor,2)) && isa(posIMUBody2Sensor, 'double'), 'GenericINS.Predict(): "posIMUBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((6 == size(imuData,1)) && (1 == size(imuData,2)) && isa(imuData, 'double'), 'GenericINS.SensorFusion.Predict(): "imuData" must be a 6-by-1 vector of type double!');
+            assert(isscalar(sampletime) && isa(sampletime, 'double'), 'GenericINS.SensorFusion.Predict(): "sampletime" must be a scalar of type double!');
+            assert((3 == size(dcmIMUBody2Sensor,1)) && (3 == size(dcmIMUBody2Sensor,2)) && isa(dcmIMUBody2Sensor, 'double'), 'GenericINS.SensorFusion.Predict(): "dcmIMUBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((3 == size(posIMUBody2Sensor,1)) && (1 == size(posIMUBody2Sensor,2)) && isa(posIMUBody2Sensor, 'double'), 'GenericINS.SensorFusion.Predict(): "posIMUBody2Sensor" must be a 3-by-1 vector of type double!');
 
             % Do not allow prediction of an uninitialized INS
             if(~obj.initialized)
                 return;
             end
+            obj.firstPrediction = true;
 
             % Generate sigma points
             obj.GenerateSigmaPoints();
             obj.spU2D = true;
 
             % Propagate through process model
-            [obj.omegaEarth, obj.Rn, obj.Re, R0] = GenericINS.WGS84(obj.x(1));
-            obj.localGravity = GenericINS.Gravity(obj.x(3), obj.x(1), R0);
-            for i = int32(1):GenericINS.NUM_SP
-                state = obj.Xi(1:GenericINS.DIM_X,i);
-                w = obj.Xi((GenericINS.DIM_X+int32(1)):(GenericINS.DIM_X + GenericINS.DIM_W),i);
-                obj.Xi(1:GenericINS.DIM_X,i) = GenericINS.ProcessModelEuler(state, w, imuData, sampletime, dcmIMUBody2Sensor, obj.Rn, obj.Re, obj.omegaEarth, obj.localGravity);
+            [obj.omegaEarth, obj.Rn, obj.Re, R0] = GenericINS.SensorFusion.WGS84(obj.x(1));
+            obj.localGravity = GenericINS.SensorFusion.Gravity(obj.x(3), obj.x(1), R0);
+            for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                w = obj.Xi((GenericINS.SensorFusion.DIM_X+int32(1)):(GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W),i);
+                obj.Xi(1:GenericINS.SensorFusion.DIM_X,i) = GenericINS.SensorFusion.ProcessModelEuler(state, w, imuData, sampletime, dcmIMUBody2Sensor, obj.Rn, obj.Re, obj.omegaEarth, obj.localGravity);
             end
 
             % Calculate dX = Xi - x
             obj.CalculateDX();
 
             % Update square root covariance
-            [~, Sx_UPPER] = qr((obj.srwi*obj.dX(:,2:GenericINS.NUM_SP))', 0);
+            [~, Sx_UPPER] = qr((obj.srwi*obj.dX(:,2:GenericINS.SensorFusion.NUM_SP))', 0);
             Sx_UPPER = cholupdate(Sx_UPPER, obj.srw0*obj.dX(:,1), '+');
-            obj.S(1:GenericINS.DIM_XS,1:GenericINS.DIM_XS) = Sx_UPPER';
+            obj.S(1:GenericINS.SensorFusion.DIM_XS,1:GenericINS.SensorFusion.DIM_XS) = Sx_UPPER';
 
             % Save latest IMU data
             obj.gyrRaw = imuData(4:6);
@@ -511,136 +525,136 @@ classdef GenericINS < handle
             obj.posIMUBody2Sensor = posIMUBody2Sensor;
         end
         function UpdatePosition3D(obj, measurementLatLonAlt, stdNorthEastDown, posBody2Sensor)
-            %GenericINS.UpdatePosition3D Perform an observation step for 3D geographic position data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdatePosition3D Perform an observation step for 3D geographic position data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementLatLonAlt ... The measurement vector [lat (rad); lon (rad); alt (m, positive upwards)].
             % stdNorthEastDown     ... The standard deviation in meters, [north; east; down].
             % posBody2Sensor       ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
-            assert((3 == size(measurementLatLonAlt,1)) && (1 == size(measurementLatLonAlt,2)) && isa(measurementLatLonAlt, 'double'), 'GenericINS.UpdatePosition3D(): "measurementLatLonAlt" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdNorthEastDown,1)) && (1 == size(stdNorthEastDown,2)) && isa(stdNorthEastDown, 'double'), 'GenericINS.UpdatePosition3D(): "stdNorthEastDown" must be a 3-by-1 vector of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdatePosition3D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((3 == size(measurementLatLonAlt,1)) && (1 == size(measurementLatLonAlt,2)) && isa(measurementLatLonAlt, 'double'), 'GenericINS.SensorFusion.UpdatePosition3D(): "measurementLatLonAlt" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdNorthEastDown,1)) && (1 == size(stdNorthEastDown,2)) && isa(stdNorthEastDown, 'double'), 'GenericINS.SensorFusion.UpdatePosition3D(): "stdNorthEastDown" must be a 3-by-1 vector of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdatePosition3D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
             obj.UpdatePosition(3, measurementLatLonAlt, stdNorthEastDown, posBody2Sensor);
         end
         function UpdatePosition2D(obj, measurementLatLon, stdNorthEast, posBody2Sensor)
-            %GenericINS.UpdatePosition2D Perform an observation step for 2D geographic position data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdatePosition2D Perform an observation step for 2D geographic position data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementLatLon ... The measurement vector [lat (rad); lon (rad)].
             % stdNorthEast      ... The standard deviation in meters, [north; east].
             % posBody2Sensor    ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
-            assert((2 == size(measurementLatLon,1)) && (1 == size(measurementLatLon,2)) && isa(measurementLatLon, 'double'), 'GenericINS.UpdatePosition2D(): "measurementLatLon" must be a 2-by-1 vector of type double!');
-            assert((2 == size(stdNorthEast,1)) && (1 == size(stdNorthEast,2)) && isa(stdNorthEast, 'double'), 'GenericINS.UpdatePosition2D(): "stdNorthEast" must be a 2-by-1 vector of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdatePosition2D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((2 == size(measurementLatLon,1)) && (1 == size(measurementLatLon,2)) && isa(measurementLatLon, 'double'), 'GenericINS.SensorFusion.UpdatePosition2D(): "measurementLatLon" must be a 2-by-1 vector of type double!');
+            assert((2 == size(stdNorthEast,1)) && (1 == size(stdNorthEast,2)) && isa(stdNorthEast, 'double'), 'GenericINS.SensorFusion.UpdatePosition2D(): "stdNorthEast" must be a 2-by-1 vector of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdatePosition2D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
             obj.UpdatePosition(2, measurementLatLon, stdNorthEast, posBody2Sensor);
         end
         function UpdatePosition1D(obj, measurementAlt, stdDown, posBody2Sensor)
-            %GenericINS.UpdatePosition1D Perform an observation step for 1D geographic position data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdatePosition1D Perform an observation step for 1D geographic position data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementAlt ... The measurement scalar [alt (m, positive upwards)].
             % stdDown        ... The standard deviation in meters, [down].
             % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
-            assert(isscalar(measurementAlt) && isa(measurementAlt, 'double'), 'GenericINS.UpdatePosition1D(): "measurementAlt" must be a scalar of type double!');
-            assert(isscalar(stdDown) && isa(stdDown, 'double'), 'GenericINS.UpdatePosition1D(): "stdDown" must be a scalar of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdatePosition1D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert(isscalar(measurementAlt) && isa(measurementAlt, 'double'), 'GenericINS.SensorFusion.UpdatePosition1D(): "measurementAlt" must be a scalar of type double!');
+            assert(isscalar(stdDown) && isa(stdDown, 'double'), 'GenericINS.SensorFusion.UpdatePosition1D(): "stdDown" must be a scalar of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdatePosition1D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
             obj.UpdatePosition(1, measurementAlt, stdDown, posBody2Sensor);
         end
         function UpdateVelocity3D(obj, measurementXYZ, stdXYZ, posBody2Sensor, dcmBody2Sensor)
-            %GenericINS.UpdateVelocity3D Perform an observation step for 3D velocity data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateVelocity3D Perform an observation step for 3D velocity data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementXYZ ... The measurement vector, [x (m/s); y (m/s); z (m/s)].
             % stdXYZ         ... The standard deviation, [x (m/s); y (m/s); z (m/s)].
             % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
             % dcmBody2Sensor ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert((3 == size(measurementXYZ,1)) && (1 == size(measurementXYZ,2)) && isa(measurementXYZ, 'double'), 'GenericINS.UpdateVelocity3D(): "measurementXYZ" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdXYZ,1)) && (1 == size(stdXYZ,2)) && isa(stdXYZ, 'double'), 'GenericINS.UpdateVelocity3D(): "stdXYZ" must be a 3-by-1 vector of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateVelocity3D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((3 == size(measurementXYZ,1)) && (1 == size(measurementXYZ,2)) && isa(measurementXYZ, 'double'), 'GenericINS.SensorFusion.UpdateVelocity3D(): "measurementXYZ" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdXYZ,1)) && (1 == size(stdXYZ,2)) && isa(stdXYZ, 'double'), 'GenericINS.SensorFusion.UpdateVelocity3D(): "stdXYZ" must be a 3-by-1 vector of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity3D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateVelocity(3, measurementXYZ, stdXYZ, posBody2Sensor, dcmBody2Sensor);
         end
         function UpdateVelocity2D(obj, measurementXY, stdXY, posBody2Sensor, dcmBody2Sensor)
-            %GenericINS.UpdateVelocity2D Perform an observation step for 2D velocity data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateVelocity2D Perform an observation step for 2D velocity data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementXY  ... The measurement vector, [x (m/s); y (m/s)].
             % stdXY          ... The standard deviation, [x (m/s); y (m/s)].
             % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
             % dcmBody2Sensor ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert((2 == size(measurementXY,1)) && (1 == size(measurementXY,2)) && isa(measurementXY, 'double'), 'GenericINS.UpdateVelocity2D(): "measurementXY" must be a 2-by-1 vector of type double!');
-            assert((2 == size(stdXY,1)) && (1 == size(stdXY,2)) && isa(stdXY, 'double'), 'GenericINS.UpdateVelocity2D(): "stdXY" must be a 2-by-1 vector of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateVelocity2D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity2D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((2 == size(measurementXY,1)) && (1 == size(measurementXY,2)) && isa(measurementXY, 'double'), 'GenericINS.SensorFusion.UpdateVelocity2D(): "measurementXY" must be a 2-by-1 vector of type double!');
+            assert((2 == size(stdXY,1)) && (1 == size(stdXY,2)) && isa(stdXY, 'double'), 'GenericINS.SensorFusion.UpdateVelocity2D(): "stdXY" must be a 2-by-1 vector of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity2D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity2D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateVelocity(2, measurementXY, stdXY, posBody2Sensor, dcmBody2Sensor);
         end
         function UpdateVelocity1D(obj, measurementZ, stdZ, posBody2Sensor, dcmBody2Sensor)
-            %GenericINS.UpdateVelocity1D Perform an observation step for 1D velocity data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateVelocity1D Perform an observation step for 1D velocity data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementZ   ... The measurement scalar, [z (m/s)].
             % stdZ           ... The standard deviation, [z (m/s)].
             % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
             % dcmBody2Sensor ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert(isscalar(measurementZ) && isa(measurementZ, 'double'), 'GenericINS.UpdateVelocity1D(): "measurementZ" must be a scalar of type double!');
-            assert(isscalar(stdZ) && isa(stdZ, 'double'), 'GenericINS.UpdateVelocity1D(): "stdZ" must be a scalar of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateVelocity1D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateVelocity1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert(isscalar(measurementZ) && isa(measurementZ, 'double'), 'GenericINS.SensorFusion.UpdateVelocity1D(): "measurementZ" must be a scalar of type double!');
+            assert(isscalar(stdZ) && isa(stdZ, 'double'), 'GenericINS.SensorFusion.UpdateVelocity1D(): "stdZ" must be a scalar of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity1D(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateVelocity1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateVelocity(1, measurementZ, stdZ, posBody2Sensor, dcmBody2Sensor);
         end
         function UpdateSOG(obj, measurementSOG, stdSOG, posBody2Sensor)
-            %GenericINS.UpdateSOG Perform an observation step for speed-over-ground data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateSOG Perform an observation step for speed-over-ground data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementSOG ... The measurement scalar, [sog (m/s)].
             % stdSOG         ... The standard deviation, [sog (m/s)].
             % posBody2Sensor ... Position of sensor frame origin w.r.t. body frame origin in body frame coordinates.
-            assert(isscalar(measurementSOG) && isa(measurementSOG, 'double'), 'GenericINS.UpdateSOG(): "measurementSOG" must be a scalar of type double!');
-            assert(isscalar(stdSOG) && isa(stdSOG, 'double'), 'GenericINS.UpdateSOG(): "stdSOG" must be a scalar of type double!');
-            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.UpdateSOG(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
+            assert(isscalar(measurementSOG) && isa(measurementSOG, 'double'), 'GenericINS.SensorFusion.UpdateSOG(): "measurementSOG" must be a scalar of type double!');
+            assert(isscalar(stdSOG) && isa(stdSOG, 'double'), 'GenericINS.SensorFusion.UpdateSOG(): "stdSOG" must be a scalar of type double!');
+            assert((3 == size(posBody2Sensor,1)) && (1 == size(posBody2Sensor,2)) && isa(posBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateSOG(): "posBody2Sensor" must be a 3-by-1 vector of type double!');
             obj.UpdateSpeedOverGround(measurementSOG, stdSOG, posBody2Sensor);
         end
         function UpdateOrientation3D(obj, measurementRollPitchYaw, stdRollPitchYaw, dcmBody2Sensor)
-            %GenericINS.UpdateOrientation3D Perform an observation step for 3D orientation data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateOrientation3D Perform an observation step for 3D orientation data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementRollPitchYaw ... The measurement vector, [roll (rad); pitch (rad); yaw (rad)].
             % stdRollPitchYaw         ... The standard deviation, [roll (rad); pitch (rad); yaw (rad)].
             % dcmBody2Sensor          ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert((3 == size(measurementRollPitchYaw,1)) && (1 == size(measurementRollPitchYaw,2)) && isa(measurementRollPitchYaw, 'double'), 'GenericINS.UpdateOrientation3D(): "measurementRollPitchYaw" must be a 3-by-1 vector of type double!');
-            assert((3 == size(stdRollPitchYaw,1)) && (1 == size(stdRollPitchYaw,2)) && isa(stdRollPitchYaw, 'double'), 'GenericINS.UpdateOrientation3D(): "stdRollPitchYaw" must be a 3-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateOrientation3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((3 == size(measurementRollPitchYaw,1)) && (1 == size(measurementRollPitchYaw,2)) && isa(measurementRollPitchYaw, 'double'), 'GenericINS.SensorFusion.UpdateOrientation3D(): "measurementRollPitchYaw" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdRollPitchYaw,1)) && (1 == size(stdRollPitchYaw,2)) && isa(stdRollPitchYaw, 'double'), 'GenericINS.SensorFusion.UpdateOrientation3D(): "stdRollPitchYaw" must be a 3-by-1 vector of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateOrientation3D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateOrientation(3, measurementRollPitchYaw, stdRollPitchYaw, dcmBody2Sensor);
         end
         function UpdateOrientation2D(obj, measurementRollPitch, stdRollPitch, dcmBody2Sensor)
-            %GenericINS.UpdateOrientation2D Perform an observation step for 2D orientation data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateOrientation2D Perform an observation step for 2D orientation data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementRollPitch ... The measurement vector, [roll (rad); pitch (rad)].
             % stdRollPitch         ... The standard deviation, [roll (rad); pitch (rad)].
             % dcmBody2Sensor       ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert((2 == size(measurementRollPitch,1)) && (1 == size(measurementRollPitch,2)) && isa(measurementRollPitch, 'double'), 'GenericINS.UpdateOrientation2D(): "measurementRollPitch" must be a 2-by-1 vector of type double!');
-            assert((2 == size(stdRollPitch,1)) && (1 == size(stdRollPitch,2)) && isa(stdRollPitch, 'double'), 'GenericINS.UpdateOrientation2D(): "stdRollPitch" must be a 2-by-1 vector of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateOrientation2D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert((2 == size(measurementRollPitch,1)) && (1 == size(measurementRollPitch,2)) && isa(measurementRollPitch, 'double'), 'GenericINS.SensorFusion.UpdateOrientation2D(): "measurementRollPitch" must be a 2-by-1 vector of type double!');
+            assert((2 == size(stdRollPitch,1)) && (1 == size(stdRollPitch,2)) && isa(stdRollPitch, 'double'), 'GenericINS.SensorFusion.UpdateOrientation2D(): "stdRollPitch" must be a 2-by-1 vector of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateOrientation2D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateOrientation(2, measurementRollPitch, stdRollPitch, dcmBody2Sensor);
         end
         function UpdateOrientation1D(obj, measurementYaw, stdYaw, dcmBody2Sensor)
-            %GenericINS.UpdateOrientation1D Perform an observation step for 1D orientation data. The update is only calculated if the INS is initialized.
+            %GenericINS.SensorFusion.UpdateOrientation1D Perform an observation step for 1D orientation data. The update is only calculated if the INS is initialized.
             % 
             % PARAMETERS
             % measurementYaw ... The measurement scalar, [yaw (rad)].
             % stdYaw         ... The standard deviation, [yaw (rad)].
             % dcmBody2Sensor ... Direction cosine matrix to rotate vectors from body frame to sensor frame.
-            assert(isscalar(measurementYaw) && isa(measurementYaw, 'double'), 'GenericINS.UpdateOrientation1D(): "measurementYaw" must be a scalar of type double!');
-            assert(isscalar(stdYaw) && isa(stdYaw, 'double'), 'GenericINS.UpdateOrientation1D(): "stdYaw" must be a scalar of type double!');
-            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.UpdateOrientation1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
+            assert(isscalar(measurementYaw) && isa(measurementYaw, 'double'), 'GenericINS.SensorFusion.UpdateOrientation1D(): "measurementYaw" must be a scalar of type double!');
+            assert(isscalar(stdYaw) && isa(stdYaw, 'double'), 'GenericINS.SensorFusion.UpdateOrientation1D(): "stdYaw" must be a scalar of type double!');
+            assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateOrientation1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateOrientation(1, measurementYaw, stdYaw, dcmBody2Sensor);
         end
         function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = GetMotionState(obj)
-            %GenericINS.GetMotionState Get the motion state.
+            %GenericINS.SensorFusion.GetMotionState Get the motion state.
             % 
             % RETURN
-            % valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized.
+            % valid                      ... A scalar boolean that indicates if the motion state is valid or not. It is valid if the INS was initialized and performed at least one prediction.
             % positionLLA                ... Geographic position of the body frame, [lat (rad); lon (rad); alt (m, positive upwards)].
             % orientationQuaternionWXYZ  ... Unit quaternion describing a rotation from body frame to navigation frame, [qw; qx; qy; qz], where qw indicates the scalar part of the quaternion.
             % orientationRollPitchYaw    ... Euler angles according to the ZYX-convention.
@@ -652,18 +666,18 @@ classdef GenericINS < handle
             % angleOfAttack              ... Angle of attack in radians.
             % sideSlipAngle              ... Side slip angle in radians.
             % inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].
-            valid = obj.initialized;
+            valid = obj.initialized && obj.firstPrediction;
 
             % Orientation
-            orientationQuaternionWXYZ = GenericINS.Normalize(obj.x(7:10));
-            Cq = GenericINS.Cb2n(orientationQuaternionWXYZ);
-            [roll, pitch, yaw] = GenericINS.EulerZYX(Cq);
+            orientationQuaternionWXYZ = GenericINS.SensorFusion.Normalize(obj.x(7:10));
+            Cq = GenericINS.SensorFusion.Cb2n(orientationQuaternionWXYZ);
+            [roll, pitch, yaw] = GenericINS.SensorFusion.EulerZYX(Cq);
             orientationRollPitchYaw = [roll; pitch; yaw];
 
             % Geographic position (add vector from accelerometer to body origin)
             iM = diag([(1/(obj.Rn + obj.x(3))); (1/((obj.Re + obj.x(3))*cos(obj.x(1)))); -1.0]);
             positionLLA = obj.x(1:3) - iM * Cq * obj.posIMUBody2Sensor;
-            [lat, lon] = GenericINS.LatLon(positionLLA(1), positionLLA(2));
+            [lat, lon] = GenericINS.SensorFusion.LatLon(positionLLA(1), positionLLA(2));
             positionLLA(1) = lat;
             positionLLA(2) = lon;
 
@@ -679,16 +693,16 @@ classdef GenericINS < handle
             velocityUVW = Cq' * velocityNED;
 
             % COG, SOG, AOA, SSA
-            courseOverGround = GenericINS.SymmetricalAngle(atan2(velocityNED(2), velocityNED(1)));
+            courseOverGround = GenericINS.SensorFusion.SymmetricalAngle(atan2(velocityNED(2), velocityNED(1)));
             speedOverGround = sqrt(velocityNED(1:2)'*velocityNED(1:2));
-            angleOfAttack = GenericINS.SymmetricalAngle(atan2(velocityNED(3), speedOverGround));
-            sideSlipAngle = GenericINS.SymmetricalAngle(courseOverGround - yaw);
+            angleOfAttack = GenericINS.SensorFusion.SymmetricalAngle(atan2(velocityNED(3), speedOverGround));
+            sideSlipAngle = GenericINS.SensorFusion.SymmetricalAngle(courseOverGround - yaw);
 
             % Inertial sensor bias
             inertialSensorBias = obj.x(11:16);
         end
         function [x, S] = GetInternalState(obj)
-            %GenericINS.GetInternalState Get the internal state of the filter.
+            %GenericINS.SensorFusion.GetInternalState Get the internal state of the filter.
             % 
             % RETURN
             % x ... 16-by-1 state vector representing the motion state with respect to the IMU. Elements are as follows
@@ -709,8 +723,14 @@ classdef GenericINS < handle
             %       15: Gyroscope bias (x) in rad/s.
             %       16: Gyroscope bias (x) in rad/s.
             % S ... 15-by-15 matrix representing the square root of the state covariance matrix. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).
-            x = obj.x(1:GenericINS.DIM_X);
-            S = obj.S(1:GenericINS.DIM_XS,1:GenericINS.DIM_XS);
+            x = obj.x(1:GenericINS.SensorFusion.DIM_X);
+            S = obj.S(1:GenericINS.SensorFusion.DIM_XS,1:GenericINS.SensorFusion.DIM_XS);
+        end
+        function MakeInvalid(obj)
+            %GenericINS.SensorFusion.MakeInvalid Make the filter status invalid. An initialization followed by at least one prediction step
+            % is required to make the filter valid again.
+            obj.initialized = false;
+            obj.firstPrediction = false;
         end
     end
     methods(Access=private)
@@ -724,43 +744,43 @@ classdef GenericINS < handle
             end
 
             % Matrix of sigma points (L x numSP) initialized with mean value x
-            obj.Xi = repmat(obj.x, 1, GenericINS.NUM_SP);
+            obj.Xi = repmat(obj.x, 1, GenericINS.SensorFusion.NUM_SP);
 
             % For remaining sigma points S*Z is required
-            SZ = obj.S * obj.Z(:,int32(2):GenericINS.NUM_SP);
+            SZ = obj.S * obj.Z(:,int32(2):GenericINS.SensorFusion.NUM_SP);
 
             % Convert orientation-vector components (3 dimensions) to quaternion-components (4 dimensions): SZq will have one more row than SZ
-            SZq = [SZ(1:6,:); zeros(4,GenericINS.NUM_SP - int32(1)); SZ(10:end,:)];
-            SZq(7:10,:) = GenericINS.OV2Q(SZ(7:9,:));
+            SZq = [SZ(1:6,:); zeros(4,GenericINS.SensorFusion.NUM_SP - int32(1)); SZ(10:end,:)];
+            SZq(7:10,:) = GenericINS.SensorFusion.OV2Q(SZ(7:9,:));
 
             % Calculate final sigma points by Xi = x + S*Z, however, with special treatment for quaternion parts (quaternion multiplication instead of vector addition)
             % We leave Xi(:,1) as it is because the 0-th sigma point is equal to the mean value
             obj.Xi(1:6,2:end)    = obj.Xi(1:6,2:end) + SZq(1:6,:);
-            obj.Xi(7:10,2:end)   = GenericINS.Qdot(SZq(7:10,:), obj.Xi(7:10,1)); 
+            obj.Xi(7:10,2:end)   = GenericINS.SensorFusion.Qdot(SZq(7:10,:), obj.Xi(7:10,1)); 
             obj.Xi(11:end,2:end) = obj.Xi(11:end,2:end) + SZq(11:end,:);
         end
         function CalculateDX(obj)
             % Get the pivot angle from 0-th sigma point and remove this angle from all sigma points
             pivotAngle = obj.Xi(2,1);
-            obj.Xi(2,:) = GenericINS.SymmetricalAngle(obj.Xi(2,:) - repmat(pivotAngle, 1, GenericINS.NUM_SP));
+            obj.Xi(2,:) = GenericINS.SensorFusion.SymmetricalAngle(obj.Xi(2,:) - repmat(pivotAngle, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Calculate weighted mean of sigma points (barycentric mean for quaternion part)
-            obj.x(1:GenericINS.DIM_X) = obj.w0 * obj.Xi(1:GenericINS.DIM_X,1) + obj.wi * sum(obj.Xi(1:GenericINS.DIM_X,2:GenericINS.NUM_SP), 2);
-            obj.x(7:10) = GenericINS.Normalize(obj.x(7:10));
+            obj.x(1:GenericINS.SensorFusion.DIM_X) = obj.w0 * obj.Xi(1:GenericINS.SensorFusion.DIM_X,1) + obj.wi * sum(obj.Xi(1:GenericINS.SensorFusion.DIM_X,2:GenericINS.SensorFusion.NUM_SP), 2);
+            obj.x(7:10) = GenericINS.SensorFusion.Normalize(obj.x(7:10));
 
             % Calculate dX = Xi - x
             % Special treatment for angle and quaternion. Xi - x: We need the inverse quaternion because of -x.
             q_inv = [obj.x(7); -obj.x(8:10)];
-            dXq = GenericINS.Qdot(obj.Xi(7:10,:), q_inv);
-            obj.dX = [obj.Xi(1,:) - repmat(obj.x(1), 1, GenericINS.NUM_SP); ...
-                  GenericINS.SymmetricalAngle(obj.Xi(2,:) - repmat(obj.x(2), 1, GenericINS.NUM_SP)); ...
-                  obj.Xi(3:6,:) - repmat(obj.x(3:6), 1, GenericINS.NUM_SP); ...
-                  GenericINS.Q2OV(dXq); ...
-                  obj.Xi(11:GenericINS.DIM_X,:) - repmat(obj.x(11:GenericINS.DIM_X), 1, GenericINS.NUM_SP)];
+            dXq = GenericINS.SensorFusion.Qdot(obj.Xi(7:10,:), q_inv);
+            obj.dX = [obj.Xi(1,:) - repmat(obj.x(1), 1, GenericINS.SensorFusion.NUM_SP); ...
+                  GenericINS.SensorFusion.SymmetricalAngle(obj.Xi(2,:) - repmat(obj.x(2), 1, GenericINS.SensorFusion.NUM_SP)); ...
+                  obj.Xi(3:6,:) - repmat(obj.x(3:6), 1, GenericINS.SensorFusion.NUM_SP); ...
+                  GenericINS.SensorFusion.Q2OV(dXq); ...
+                  obj.Xi(11:GenericINS.SensorFusion.DIM_X,:) - repmat(obj.x(11:GenericINS.SensorFusion.DIM_X), 1, GenericINS.SensorFusion.NUM_SP)];
 
             % Add pivot angle to state (and also sigma-points for an upcomming measurement update)
-            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2) + pivotAngle);
-            obj.Xi(2,:) = GenericINS.SymmetricalAngle(obj.Xi(2,:) + repmat(pivotAngle, 1, GenericINS.NUM_SP));
+            obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2) + pivotAngle);
+            obj.Xi(2,:) = GenericINS.SensorFusion.SymmetricalAngle(obj.Xi(2,:) + repmat(pivotAngle, 1, GenericINS.SensorFusion.NUM_SP));
         end
         function UpdatePosition(obj, yDim, measurement, stdMeasurement, posBody2Sensor)
             % Do not allow updates of an uninitialized INS
@@ -779,24 +799,24 @@ classdef GenericINS < handle
 
             % Propagate through measurement model
             yDim = int32(yDim);
-            Y = zeros(yDim, GenericINS.NUM_SP);
+            Y = zeros(yDim, GenericINS.SensorFusion.NUM_SP);
             switch(yDim)
                 case 1
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
                         Y(:,i) = y(3);
                     end
                 case 2
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
                         Y(:,i) = y(1:2);
                     end
                 case 3
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        Y(:,i) = GenericINS.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        Y(:,i) = GenericINS.SensorFusion.SensorModelPosition(state, obj.Rn, obj.Re, obj.posIMUBody2Sensor, posBody2Sensor);
                     end
             end
 
@@ -804,24 +824,24 @@ classdef GenericINS < handle
             pivotAngle = 0;
             if(yDim > int32(1))
                 pivotAngle = Y(2,1);
-                Y(2,:) = GenericINS.SymmetricalAngle(Y(2,:) - repmat(pivotAngle, 1, GenericINS.NUM_SP));
+                Y(2,:) = GenericINS.SensorFusion.SymmetricalAngle(Y(2,:) - repmat(pivotAngle, 1, GenericINS.SensorFusion.NUM_SP));
             end
 
             % Calculate weighted mean of sigma-points
-            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.NUM_SP), 2);
+            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.SensorFusion.NUM_SP), 2);
 
             % Calculate dY = Y - ym
-            dY = (Y - repmat(ym, 1, GenericINS.NUM_SP));
+            dY = (Y - repmat(ym, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Add pivot angle to mean value
             if(yDim > int32(1))
-                ym(2) = GenericINS.SymmetricalAngle(ym(2) + pivotAngle);
+                ym(2) = GenericINS.SensorFusion.SymmetricalAngle(ym(2) + pivotAngle);
             end
 
             % Calculate the innovation
             innovation = measurement - ym;
             if(yDim > int32(1))
-                innovation(2) = GenericINS.SymmetricalAngle(innovation(2));
+                innovation(2) = GenericINS.SensorFusion.SymmetricalAngle(innovation(2));
             end
 
             % Calculate uncertainty: [m]->[rad] for lat,lon
@@ -832,14 +852,14 @@ classdef GenericINS < handle
             end
 
             % QR decomposition of sigma points: additive SRSSUKF
-            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.NUM_SP)) sqrtR]', 0);
+            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.SensorFusion.NUM_SP)) sqrtR]', 0);
 
             % Cholesky update or downdate (w0 is guaranteed to be positive -> update)
             Sy_UPPER = cholupdate(Sy_UPPER, obj.srw0 * dY(:,1), '+');
             Sy = Sy_UPPER';
 
             % Calculate covariance matrix Pxy
-            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.NUM_SP) * dY(:,int32(2):GenericINS.NUM_SP)';
+            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.SensorFusion.NUM_SP) * dY(:,int32(2):GenericINS.SensorFusion.NUM_SP)';
 
             % Calculate the Kalman gain matrix
             K = (Pxy / Sy') / Sy;
@@ -849,19 +869,19 @@ classdef GenericINS < handle
 
             % Update state estimation x = x + dx taking angles and quaternions into account
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
-            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2));
-            obj.x(7:10) = GenericINS.Qdot(GenericINS.OV2Q(dx(7:9)), obj.x(7:10));
-            obj.x(11:GenericINS.DIM_X) = obj.x(11:GenericINS.DIM_X) + dx(10:end);
+            obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
+            obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
-            Sx_UPPER = obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS)';
+            Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
             U = K * Sy;
             for j = 1:yDim
                 [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,j), '-');
             end
 
             % Convert from UPPER cholesky factor to LOWER cholesky factor
-            obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
+            obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS) = Sx_UPPER';
         end
         function UpdateVelocity(obj, yDim, measurement, stdMeasurement, posBody2Sensor, dcmBody2Sensor)
             % Do not allow updates of an uninitialized INS
@@ -880,46 +900,46 @@ classdef GenericINS < handle
 
             % Propagate through measurement model
             yDim = int32(yDim);
-            Y = zeros(yDim, GenericINS.NUM_SP);
+            Y = zeros(yDim, GenericINS.SensorFusion.NUM_SP);
             switch(yDim)
                 case 1
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
                         Y(:,i) = y(3);
                     end
                 case 2
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
                         Y(:,i) = y(1:2);
                     end
                 case 3
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        Y(:,i) = GenericINS.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        Y(:,i) = GenericINS.SensorFusion.SensorModelVelocity(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor);
                     end
             end
 
             % Calculate weighted mean of sigma-points
-            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.NUM_SP), 2);
+            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.SensorFusion.NUM_SP), 2);
 
             % Calculate dY = Y - ym
-            dY = (Y - repmat(ym, 1, GenericINS.NUM_SP));
+            dY = (Y - repmat(ym, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Calculate the innovation
             innovation = measurement - ym;
 
             % QR decomposition of sigma points: additive SRSSUKF
             sqrtR = diag(stdMeasurement);
-            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.NUM_SP)) sqrtR]', 0);
+            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.SensorFusion.NUM_SP)) sqrtR]', 0);
 
             % Cholesky update or downdate (w0 is guaranteed to be positive -> update)
             Sy_UPPER = cholupdate(Sy_UPPER, obj.srw0 * dY(:,1), '+');
             Sy = Sy_UPPER';
 
             % Calculate covariance matrix Pxy
-            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.NUM_SP) * dY(:,int32(2):GenericINS.NUM_SP)';
+            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.SensorFusion.NUM_SP) * dY(:,int32(2):GenericINS.SensorFusion.NUM_SP)';
 
             % Calculate the Kalman gain matrix
             K = (Pxy / Sy') / Sy;
@@ -929,19 +949,19 @@ classdef GenericINS < handle
 
             % Update state estimation x = x + dx taking angles and quaternions into account
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
-            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2));
-            obj.x(7:10) = GenericINS.Qdot(GenericINS.OV2Q(dx(7:9)), obj.x(7:10));
-            obj.x(11:GenericINS.DIM_X) = obj.x(11:GenericINS.DIM_X) + dx(10:end);
+            obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
+            obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
-            Sx_UPPER = obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS)';
+            Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
             U = K * Sy;
             for j = 1:yDim
                 [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,j), '-');
             end
 
             % Convert from UPPER cholesky factor to LOWER cholesky factor
-            obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
+            obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS) = Sx_UPPER';
         end
         function UpdateSpeedOverGround(obj, measurement, stdMeasurement, posBody2Sensor)
             % Do not allow updates of an uninitialized INS
@@ -959,31 +979,31 @@ classdef GenericINS < handle
             obj.spU2D = false;
 
             % Propagate through measurement model
-            Y = zeros(1, GenericINS.NUM_SP);
-            for i = int32(1):GenericINS.NUM_SP
-                state = obj.Xi(1:GenericINS.DIM_X,i);
-                Y(:,i) = GenericINS.SensorModelSpeedOverGround(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor);
+            Y = zeros(1, GenericINS.SensorFusion.NUM_SP);
+            for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                Y(:,i) = GenericINS.SensorFusion.SensorModelSpeedOverGround(state, obj.omegaEarth, obj.gyrRaw, obj.posIMUBody2Sensor, obj.dcmIMUBody2Sensor, posBody2Sensor);
             end
 
             % Calculate weighted mean of sigma-points
-            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.NUM_SP), 2);
+            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.SensorFusion.NUM_SP), 2);
 
             % Calculate dY = Y - ym
-            dY = (Y - repmat(ym, 1, GenericINS.NUM_SP));
+            dY = (Y - repmat(ym, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Calculate the innovation
             innovation = measurement - ym;
 
             % QR decomposition of sigma points: additive SRSSUKF
             sqrtR = diag(stdMeasurement);
-            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.NUM_SP)) sqrtR]', 0);
+            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.SensorFusion.NUM_SP)) sqrtR]', 0);
 
             % Cholesky update or downdate (w0 is guaranteed to be positive -> update)
             Sy_UPPER = cholupdate(Sy_UPPER, obj.srw0 * dY(:,1), '+');
             Sy = Sy_UPPER';
 
             % Calculate covariance matrix Pxy
-            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.NUM_SP) * dY(:,int32(2):GenericINS.NUM_SP)';
+            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.SensorFusion.NUM_SP) * dY(:,int32(2):GenericINS.SensorFusion.NUM_SP)';
 
             % Calculate the Kalman gain matrix
             K = (Pxy / Sy') / Sy;
@@ -993,17 +1013,17 @@ classdef GenericINS < handle
 
             % Update state estimation x = x + dx taking angles and quaternions into account
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
-            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2));
-            obj.x(7:10) = GenericINS.Qdot(GenericINS.OV2Q(dx(7:9)), obj.x(7:10));
-            obj.x(11:GenericINS.DIM_X) = obj.x(11:GenericINS.DIM_X) + dx(10:end);
+            obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
+            obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
-            Sx_UPPER = obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS)';
+            Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
             U = K * Sy;
             [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,1), '-');
 
             % Convert from UPPER cholesky factor to LOWER cholesky factor
-            obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
+            obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS) = Sx_UPPER';
         end
         function UpdateOrientation(obj, yDim, measurement, stdMeasurement, dcmBody2Sensor)
             % Do not allow updates of an uninitialized INS
@@ -1022,53 +1042,53 @@ classdef GenericINS < handle
 
             % Propagate through measurement model
             yDim = int32(yDim);
-            Y = zeros(yDim, GenericINS.NUM_SP);
+            Y = zeros(yDim, GenericINS.SensorFusion.NUM_SP);
             switch(yDim)
                 case 1
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelOrientation(state, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelOrientation(state, dcmBody2Sensor);
                         Y(:,i) = y(3);
                     end
                 case 2
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        y = GenericINS.SensorModelOrientation(state, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        y = GenericINS.SensorFusion.SensorModelOrientation(state, dcmBody2Sensor);
                         Y(:,i) = y(1:2);
                     end
                 case 3
-                    for i = int32(1):GenericINS.NUM_SP
-                        state = obj.Xi(1:GenericINS.DIM_X,i);
-                        Y(:,i) = GenericINS.SensorModelOrientation(state, dcmBody2Sensor);
+                    for i = int32(1):GenericINS.SensorFusion.NUM_SP
+                        state = obj.Xi(1:GenericINS.SensorFusion.DIM_X,i);
+                        Y(:,i) = GenericINS.SensorFusion.SensorModelOrientation(state, dcmBody2Sensor);
                     end
             end
 
             % Get pivot angle from 0-th Y sigma-point and remove this angle from all sigma-points
             pivotAngle = Y(:,1);
-            Y = GenericINS.SymmetricalAngle(Y - repmat(pivotAngle, 1, GenericINS.NUM_SP));
+            Y = GenericINS.SensorFusion.SymmetricalAngle(Y - repmat(pivotAngle, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Calculate weighted mean of sigma-points
-            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.NUM_SP), 2);
+            ym = obj.w0 * Y(:,1) + obj.wi * sum(Y(:,int32(2):GenericINS.SensorFusion.NUM_SP), 2);
 
             % Calculate dY = Y - ym
-            dY = (Y - repmat(ym, 1, GenericINS.NUM_SP));
+            dY = (Y - repmat(ym, 1, GenericINS.SensorFusion.NUM_SP));
 
             % Add pivot angle to mean value
-            ym = GenericINS.SymmetricalAngle(ym + pivotAngle);
+            ym = GenericINS.SensorFusion.SymmetricalAngle(ym + pivotAngle);
 
             % Calculate the innovation
-            innovation = GenericINS.SymmetricalAngle(measurement - ym);
+            innovation = GenericINS.SensorFusion.SymmetricalAngle(measurement - ym);
 
             % QR decomposition of sigma points: additive SRSSUKF
             sqrtR = diag(stdMeasurement);
-            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.NUM_SP)) sqrtR]', 0);
+            [~, Sy_UPPER] = qr([(obj.srwi * dY(:,2:GenericINS.SensorFusion.NUM_SP)) sqrtR]', 0);
 
             % Cholesky update or downdate (w0 is guaranteed to be positive -> update)
             Sy_UPPER = cholupdate(Sy_UPPER, obj.srw0 * dY(:,1), '+');
             Sy = Sy_UPPER';
 
             % Calculate covariance matrix Pxy
-            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.NUM_SP) * dY(:,int32(2):GenericINS.NUM_SP)';
+            Pxy = obj.w0 * obj.dX(:,1) * dY(:,1)' + obj.wi * obj.dX(:,int32(2):GenericINS.SensorFusion.NUM_SP) * dY(:,int32(2):GenericINS.SensorFusion.NUM_SP)';
 
             % Calculate the Kalman gain matrix
             K = (Pxy / Sy') / Sy;
@@ -1078,24 +1098,24 @@ classdef GenericINS < handle
 
             % Update state estimation x = x + dx taking angles and quaternions into account
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
-            obj.x(2) = GenericINS.SymmetricalAngle(obj.x(2));
-            obj.x(7:10) = GenericINS.Qdot(GenericINS.OV2Q(dx(7:9)), obj.x(7:10));
-            obj.x(11:GenericINS.DIM_X) = obj.x(11:GenericINS.DIM_X) + dx(10:end);
+            obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
+            obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
-            Sx_UPPER = obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS)';
+            Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
             U = K * Sy;
             for j = 1:yDim
                 [Sx_UPPER,~] = cholupdate(Sx_UPPER, U(:,j), '-');
             end
 
             % Convert from UPPER cholesky factor to LOWER cholesky factor
-            obj.S(int32(1):GenericINS.DIM_XS,int32(1):GenericINS.DIM_XS) = Sx_UPPER';
+            obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS) = Sx_UPPER';
         end
     end
     methods(Static,Access=private)
         function y = Normalize(u)
-            %GenericINS.Normalize Safe normalization.
+            %GenericINS.SensorFusion.Normalize Safe normalization.
             % 
             % PARAMETERS
             % u ... Input vector. Must contain at least one element!
@@ -1110,7 +1130,7 @@ classdef GenericINS < handle
             y = (1.0 / len) * u;
         end
         function y = SymmetricalAngle(x)
-            %GenericINS.SymmetricalAngle Convert a given angle x [rad] to an output angle y [rad] with y being in range [-pi, +pi).
+            %GenericINS.SensorFusion.SymmetricalAngle Convert a given angle x [rad] to an output angle y [rad] with y being in range [-pi, +pi).
             % 
             % PARAMETERS
             % x ... Input angle in radians, either scalar or n-dimensional.
@@ -1121,7 +1141,7 @@ classdef GenericINS < handle
             y = x + 6.28318530717959 * double(x < -3.14159265358979) - 6.28318530717959 * double(x >= 3.14159265358979);
         end
         function Q = OV2Q(OV)
-            %GenericINS.OV2Q Convert an orientation vector to a unit quaternion.
+            %GenericINS.SensorFusion.OV2Q Convert an orientation vector to a unit quaternion.
             % 
             % PARAMETERS
             % ov ... 3xN matrix containing orientation vectors.
@@ -1145,7 +1165,7 @@ classdef GenericINS < handle
             end
         end
         function OV = Q2OV(Q)
-            %GenericINS.Q2OV Convert a unit quaternion to an orientation vector. The input quaternion will be normalized.
+            %GenericINS.SensorFusion.Q2OV Convert a unit quaternion to an orientation vector. The input quaternion will be normalized.
             % 
             % PARAMETERS
             % q ... 4xN matrix of unit quaternions, will be normalized.
@@ -1169,7 +1189,7 @@ classdef GenericINS < handle
             end
         end
         function Y = Qdot(Q, r)
-            %GenericINS.Qdot Calculate the quaternion multiplication for two unit quaternions Q and r. The output quaternion will be a unit quaternion.
+            %GenericINS.SensorFusion.Qdot Calculate the quaternion multiplication for two unit quaternions Q and r. The output quaternion will be a unit quaternion.
             % 
             % PARAMETERS
             % Q ... 4xN Matrix of normalized unit quaternions (left hand side).
@@ -1189,7 +1209,7 @@ classdef GenericINS < handle
             end
         end
         function C = Cb2n(q)
-            %GenericINS.Cb2n Calculate the rotation matrix for a given unit quaternion.
+            %GenericINS.SensorFusion.Cb2n Calculate the rotation matrix for a given unit quaternion.
             % 
             % PARAMETERS
             % q ... 4x1 normalized unit quaternion (b-frame to n-frame).
@@ -1214,7 +1234,7 @@ classdef GenericINS < handle
             ];
         end
         function [roll, pitch, yaw] = EulerZYX(R)
-            %GenericINS.EulerZYX Calculate the corresponding euler angles (zyx-convention) for a given rotation matrix (b-frame to n-frame).
+            %GenericINS.SensorFusion.EulerZYX Calculate the corresponding euler angles (zyx-convention) for a given rotation matrix (b-frame to n-frame).
             % 
             % PARAMETERS
             % R ... 3x3 Rotation matrix (b-frame to n-frame).
@@ -1224,12 +1244,12 @@ classdef GenericINS < handle
             % pitch ... Resulting pitch angle in radians.
             % yaw   ... Resulting yaw angle in radians.
             R = reshape(R, [3 3]);
-            roll = GenericINS.SymmetricalAngle(atan2(R(3,2), R(3,3)));
+            roll = GenericINS.SensorFusion.SymmetricalAngle(atan2(R(3,2), R(3,3)));
             pitch = -real(asin(min(max(R(3,1),-1.0),1.0)));
-            yaw = GenericINS.SymmetricalAngle(atan2(R(2,1), R(1,1)));
+            yaw = GenericINS.SensorFusion.SymmetricalAngle(atan2(R(2,1), R(1,1)));
         end
         function [Omega, Rn, Re, R0] = WGS84(latitude)
-            %GenericINS.WGS84 Get information about the WGS84 earth reference model for a given latitude in radians.
+            %GenericINS.SensorFusion.WGS84 Get information about the WGS84 earth reference model for a given latitude in radians.
             % 
             % PARAMETERS
             % latitude ... Latitude in radians.
@@ -1249,7 +1269,7 @@ classdef GenericINS < handle
             Omega = 7.292115e-5;
         end
         function g = Gravity(altitude, latitude, R0)
-            %GenericINS.Gravity Compute the local gravity g [m/s^2] for a given position using the WGS84 earth reference model.
+            %GenericINS.SensorFusion.Gravity Compute the local gravity g [m/s^2] for a given position using the WGS84 earth reference model.
             % 
             % PARAMETERS
             % altitude ... Height [m] w.r.t. the WGS84 reference ellipsoid (positive upwards).
@@ -1264,7 +1284,7 @@ classdef GenericINS < handle
             g = 9.780318 * (1 + 5.3024e-3 * s*s + 5.9e-6 * s2*s2) * R * R;
         end
         function [lat, lon] = LatLon(phi, lambda)
-            %GenericINS.LatLon Convert phi [rad] and lambda [rad] to latitude [rad] and longitude [rad] with latitude being in range [-pi/2, +pi/2] and longitude being in range [-pi; +pi).
+            %GenericINS.SensorFusion.LatLon Convert phi [rad] and lambda [rad] to latitude [rad] and longitude [rad] with latitude being in range [-pi/2, +pi/2] and longitude being in range [-pi; +pi).
             % 
             % PARAMETERS
             % phi    ... Input angle for latitude in radians.
@@ -1310,8 +1330,8 @@ classdef GenericINS < handle
             w_ib = dcmIMUBody2Sensor' * (u(4:6) + w(4:6) - x(14:16));
 
             % Ensure Current attitude
-            x(7:10) = GenericINS.Normalize(x(7:10));
-            DCM_b2n = GenericINS.Cb2n(x(7:10));
+            x(7:10) = GenericINS.SensorFusion.Normalize(x(7:10));
+            DCM_b2n = GenericINS.SensorFusion.Cb2n(x(7:10));
             DCM_n2b = DCM_b2n';
 
             % Predict position
@@ -1320,7 +1340,7 @@ classdef GenericINS < handle
             xOut(3) = x(3) - Ts * (x(6));
 
             % lat/lon range conversion
-            [lat, lon] = GenericINS.LatLon(xOut(1), xOut(2));
+            [lat, lon] = GenericINS.SensorFusion.LatLon(xOut(1), xOut(2));
             xOut(1) = lat;
             xOut(2) = lon;
 
@@ -1334,7 +1354,7 @@ classdef GenericINS < handle
             w_nb = w_ib - DCM_n2b * (w_ie + w_en);
             Omega = [0 -w_nb(1) -w_nb(2) -w_nb(3); w_nb(1) 0 w_nb(3) -w_nb(2); w_nb(2) -w_nb(3) 0 w_nb(1); w_nb(3) w_nb(2) -w_nb(1) 0];
             xOut(7:10) = (eye(4)*(1 - Ts*Ts*(w_nb(1)*w_nb(1) + w_nb(2)*w_nb(2) + w_nb(3)*w_nb(3))/8) + 0.5*Ts*Omega) * x(7:10);
-            xOut(7:10) = GenericINS.Normalize(xOut(7:10));
+            xOut(7:10) = GenericINS.SensorFusion.Normalize(xOut(7:10));
 
             % Predict inertial biases (Random Walk)
             xOut(11:13) = x(11:13) + Ts * w(7:9);
@@ -1345,19 +1365,19 @@ classdef GenericINS < handle
             phi = x(1);
             lambda = x(2);
             alt = x(3);
-            q = GenericINS.Normalize(x(7:10));
+            q = GenericINS.SensorFusion.Normalize(x(7:10));
 
             % The position of the sensor
             M = diag([(1/(Rn + alt)); (1/((Re + alt) * cos(phi))); -1.0]);
-            p = [phi; lambda; alt] + M * GenericINS.Cb2n(q) * (posPOSBody2Sensor - posIMUBody2Sensor);
+            p = [phi; lambda; alt] + M * GenericINS.SensorFusion.Cb2n(q) * (posPOSBody2Sensor - posIMUBody2Sensor);
 
             % lat/lon range conversion
-            [lat, lon] = GenericINS.LatLon(p(1), p(2));
+            [lat, lon] = GenericINS.SensorFusion.LatLon(p(1), p(2));
             y = [lat; lon; p(3)];
         end
         function y = SensorModelVelocity(x, omegaEarth, gyrRaw, posIMUBody2Sensor, dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor)
             % Direction cosine matrices from current quaternion
-            DCM_b2n = GenericINS.Cb2n(GenericINS.Normalize(x(7:10)));
+            DCM_b2n = GenericINS.SensorFusion.Cb2n(GenericINS.SensorFusion.Normalize(x(7:10)));
             DCM_n2b = DCM_b2n';
 
             % Angular rate of body with respect to the earth
@@ -1375,7 +1395,7 @@ classdef GenericINS < handle
         end
         function y = SensorModelSpeedOverGround(x, omegaEarth, gyrRaw, posIMUBody2Sensor, dcmIMUBody2Sensor, posBody2Sensor)
             % Direction cosine matrices from current quaternion
-            DCM_b2n = GenericINS.Cb2n(GenericINS.Normalize(x(7:10)));
+            DCM_b2n = GenericINS.SensorFusion.Cb2n(GenericINS.SensorFusion.Normalize(x(7:10)));
             DCM_n2b = DCM_b2n';
 
             % Angular rate of body with respect to the earth
@@ -1393,11 +1413,11 @@ classdef GenericINS < handle
         end
         function y = SensorModelOrientation(x, dcmBody2Sensor)
             % Get attitude from state vector
-            q = GenericINS.Normalize(x(7:10));
+            q = GenericINS.SensorFusion.Normalize(x(7:10));
 
             % Transform to roll, pitch, yaw
-            DCM_S2N = GenericINS.Cb2n(q) * dcmBody2Sensor';
-            [roll,pitch,yaw] = GenericINS.EulerZYX(DCM_S2N);
+            DCM_S2N = GenericINS.SensorFusion.Cb2n(q) * dcmBody2Sensor';
+            [roll,pitch,yaw] = GenericINS.SensorFusion.EulerZYX(DCM_S2N);
 
             % Output
             y = [roll; pitch; yaw];
@@ -1406,14 +1426,15 @@ classdef GenericINS < handle
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
         DIM_X  = int32(16);                                   % Dimension of state vector (x).
-        DIM_XS = GenericINS.DIM_X - int32(1);                 % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                 % Dimension of state vector (x) with respect to unvertainty S.
         DIM_W  = int32(12);                                   % Dimension of process noise (w).
-        DIM_L  = GenericINS.DIM_X + GenericINS.DIM_W;         % Dimension of augmented state vector.
-        DIM_LS = GenericINS.DIM_XS + GenericINS.DIM_W;        % Dimension of augmented state vector with respect to uncertainty S.
-        NUM_SP = GenericINS.DIM_LS + int32(2);                % Number of sigma-points.
+        DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;         % Dimension of augmented state vector.
+        DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;        % Dimension of augmented state vector with respect to uncertainty S.
+        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                % Number of sigma-points.
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.
+        firstPrediction;   % True if filter performed the first prediction after the initialization.
         Z;                 % Spherical simplex sigma point matrix.
         x;                 % Augmented state vector (L x 1).
         S;                 % Augmented square-root covariance matrix.
