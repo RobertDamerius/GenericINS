@@ -1298,7 +1298,7 @@ classdef SensorFusion < handle
 
             % Make sure that inputs are scalars
             lambda = reshape(lambda, [1 1]);
-                    phi = reshape(phi, [1 1]);
+            phi = reshape(phi, [1 1]);
 
             % Convert phi to symmetric angle [-pi, pi)
             phi = double(mod(phi, const_pi_2));
