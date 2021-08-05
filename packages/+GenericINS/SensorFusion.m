@@ -10,6 +10,7 @@
 % 20210209    Robert Damerius        Added output for estimated inertial sensor bias.
 % 20210521    Robert Damerius        Added measurement update for speed-over-ground data. Added return value for internal state and sqrt of covariance matrix for generated function.
 % 20210611    Robert Damerius        The class has been renamed to SensorFusion and is now part of the GenericINS package. Added filter timeout for auto-generated functions. At least one prediction is required after the initialization to make the filter valid again.
+% 20210728    Robert Damerius        Using a more accurate transformation in the position sensor model.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef SensorFusion < handle
@@ -1321,6 +1322,70 @@ classdef SensorFusion < handle
             lat = phi;
             lon = lambda;
         end
+        function [lat, lon, alt] = NED2LLA(N, E, D, originLat, originLon, originAlt)
+            %GenericINS.SensorFusion.NED2LLA Convert local NED frame coordinates to LLA coordinates (WGS84).
+            % 
+            % PARAMETERS
+            % N         ... North value of the NED position (m).
+            % E         ... East value of the NED position (m).
+            % D         ... Down value of the NED position (m).
+            % originLat ... Latitude (rad) that indicates the origin of the local NED frame.
+            % originLon ... Longitude (rad) that indicates the origin of the local NED frame.
+            % originAlt ... Altitude (m, positive upwards) that indicates the origin of the local NED frame.
+            % 
+            % RETURN
+            % lat ... Latitude (rad) of converted position.
+            % lon ... Longitude (rad) of converted position.
+            % alt ... Altitude (m, positive upwards) of converted position.
+
+            % Constants and spheroid properties
+            a = 6378137.0;
+            f = 1.0 / 298.257223563;
+            b = (1.0 - f) * a;       % Semiminor axis
+            e2 = f * (2.0 - f);      % Square of (first) eccentricity
+            ep2 = e2 / (1.0 - e2);   % Square of second eccentricity
+
+            % ECEF: Computation of (x,y,z) = (x0,y0,z0) + (dx,dy,dz)
+            slat = sin(originLat);
+            clat = cos(originLat);
+            slon = sin(originLon);
+            clon = cos(originLon);
+            e2 = f * (2.0 - f);
+            Nval  = a ./ sqrt(1.0 - e2 * slat.^2);
+            rho = (Nval + originAlt) .* clat;
+            z0 = (Nval*(1.0 - e2) + originAlt) .* slat;
+            x0 = rho .* clon;
+            y0 = rho .* slon;
+            t = clat .* (-D) - slat .* N;
+            dz = slat .* (-D) + clat .* N;
+            dx = clon .* t - slon .* E;
+            dy = slon .* t + clon .* E;
+            x = x0 + dx;
+            y = y0 + dy;
+            z = z0 + dz;
+            lon = atan2(y,x);
+
+            % Bowring's formula for initial parametric (beta) and geodetic
+            rho = hypot(x,y);
+            beta = atan2(z, (1.0 - f) * rho);
+            lat = atan2(z   + b * ep2 * sin(beta).^3,...
+            rho - a * e2  * cos(beta).^3);
+
+            % Fixed-point iteration with Bowring's formula (typically converges within two or three iterations)
+            betaNew = atan2((1.0 - f)*sin(lat), cos(lat));
+            count = 0;
+            while(any(beta(:) ~= betaNew(:)) && count < 5)
+                beta = betaNew;
+                lat = atan2(z + b * ep2 * sin(beta).^3, rho - a * e2 * cos(beta).^3);
+                betaNew = atan2((1.0 - f)*sin(lat), cos(lat));
+                count = count + 1;
+            end
+
+            % Ellipsoidal height from final value for latitude
+            slat = sin(lat);
+            Nval = a ./ sqrt(1.0 - e2 * slat.^2);
+            alt = rho .* cos(lat) + (z + e2 * Nval .* slat) .* slat - Nval;
+        end
         function xOut = ProcessModelEuler(x, w, u, Ts, dcmIMUBody2Sensor, Rn, Re, omegaEarth, localGravity)
             % Output size
             xOut = x;
@@ -1361,19 +1426,13 @@ classdef SensorFusion < handle
             xOut(14:16) = x(14:16) + Ts * w(10:12);
         end
         function y = SensorModelPosition(x, Rn, Re, posIMUBody2Sensor, posPOSBody2Sensor)
-            % Obtain position and attitude from state x
-            phi = x(1);
-            lambda = x(2);
-            alt = x(3);
+            % Vector from IMU to GNSS in NED-frame
             q = GenericINS.SensorFusion.Normalize(x(7:10));
+            r_NED = GenericINS.SensorFusion.Cb2n(q) * (posPOSBody2Sensor - posIMUBody2Sensor);
 
-            % The position of the sensor
-            M = diag([(1/(Rn + alt)); (1/((Re + alt) * cos(phi))); -1.0]);
-            p = [phi; lambda; alt] + M * GenericINS.SensorFusion.Cb2n(q) * (posPOSBody2Sensor - posIMUBody2Sensor);
-
-            % lat/lon range conversion
-            [lat, lon] = GenericINS.SensorFusion.LatLon(p(1), p(2));
-            y = [lat; lon; p(3)];
+            % Transform from NED-frame to geographic coordinates (WGS84)
+            [lat, lon, alt] = GenericINS.SensorFusion.NED2LLA(r_NED(1),r_NED(2),r_NED(3),x(1),x(2),x(3));
+            y = [lat; lon; alt];
         end
         function y = SensorModelVelocity(x, omegaEarth, gyrRaw, posIMUBody2Sensor, dcmIMUBody2Sensor, posBody2Sensor, dcmBody2Sensor)
             % Direction cosine matrices from current quaternion
@@ -1425,12 +1484,12 @@ classdef SensorFusion < handle
     end
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
-        DIM_X  = int32(16);                                   % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                 % Dimension of state vector (x) with respect to unvertainty S.
-        DIM_W  = int32(12);                                   % Dimension of process noise (w).
-        DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;         % Dimension of augmented state vector.
-        DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;        % Dimension of augmented state vector with respect to uncertainty S.
-        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                % Number of sigma-points.
+        DIM_X  = int32(16);                                                       % Dimension of state vector (x).
+        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_W  = int32(12);                                                       % Dimension of process noise (w).
+        DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;   % Dimension of augmented state vector.
+        DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
+        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                       % Number of sigma-points.
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.
