@@ -13,7 +13,7 @@
     input.ahrs.data      = [sensor.ahrs.roll sensor.ahrs.pitch sensor.ahrs.yaw];
 
     % Generate generic INS object
-    ins = GenericINS.SensorFusion();
+    ins = GenericINS.SensorFusionWithBiasEstimation();
 
     % We need to specify sensor configurations, that is sensor alignment and sensor characteristics, let's use a struct to store those parameters
     % Note: the parameters are not optimized
@@ -21,6 +21,8 @@
     config.imu.dcmBody2Sensor       = eye(3);
     config.imu.stdAcc               = 0.0014142135623731 * ones(3,1);
     config.imu.stdGyr               = 1.4142135623731e-05 * ones(3,1);
+    config.imu.stdAccBias           = 3.16227766016838e-13 * ones(3,1);
+    config.imu.stdGyrBias           = 3.16227766016838e-13 * ones(3,1);
     config.gnss.positionBody2Sensor = [1.49; 0.18; 0.06];
     config.gnss.stdNED              = [0.01; 0.01; 0.1];
     config.dvl.positionBody2Sensor  = [1.09; 0.88; 1.67];
@@ -35,11 +37,15 @@
     initialPositionLLA              = input.gnss.data(1,:)';
     initialVelocityUVW              = input.dvl.data(1,:)';
     initialOrientationRollPitchYaw  = input.ahrs.data(1,:)';
+    initialBiasAcc                  = zeros(3,1);
+    initialBiasGyr                  = zeros(3,1);
     initialStdPositionLLA           = [1e-8; 1e-8; 0.1];
     initialStdVelocityUVW           = [0.1; 0.1; 0.1];
     initialStdOrientationVector     = [1e-3; 1e-3; 1e-3];
+    initialStdBiasAcc               = [1e-4; 1e-4; 1e-4];
+    initialStdBiasGyr               = [1e-4; 1e-4; 1e-4];
     fprintf('Initializing INS: ');
-    ins.Initialize(initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, config.imu.stdAcc, config.imu.stdGyr);
+    ins.Initialize(initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, config.imu.stdAcc, config.imu.stdGyr, config.imu.stdAccBias, config.imu.stdGyrBias);
     fprintf('OK\n');
 
 %% RUN THE GENERIC INS ALGORITHM
@@ -116,7 +122,7 @@
         end
 
         % Get final state from INS
-        [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ins.GetMotionState();
+        [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();
         output.latitude(k) = positionLLA(1);
         output.longitude(k) = positionLLA(2);
     end

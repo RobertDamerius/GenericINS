@@ -1,14 +1,16 @@
 # Overview
 The Generic Inertial Navigation System (INS) uses a square-root spherical simplex unscented Kalman filter (SRSSUKF) to estimate the navigation state.
 `SRSSUKF.m` is a MATLAB class implementation of the SRSSUKF that can be used for any state estimation problem.
-The actual sensor fusion algorithm is implemented in the MATLAB class `SensorFusion.m`. This class re-implements the SRSSUKF algorithm for the Generic INS problem,
-that is, the SRSSUKF MATLAB class is not required but it is preserved in the directory for completeness.
+The actual sensor fusion algorithm is implemented in the MATLAB classes `SensorFusion.m` and `SensorFusionWithBiasEstimation.m`. These classes re-implement the SRSSUKF algorithm for the Generic INS problem,
+that is, the SRSSUKF MATLAB class is not required but it is preserved in the directory for completeness. The `SensorFusion.m` class estimates the navigation state. In addition, the `SensorFusionWithBiasEstimation.m`
+class also estimates the inertial sensor biases.
+
 
 The sensor fusion estimate the state vector containing:
 - geographic position (latitude, longitude, altitude)
 - velocity in north, east and down direction
 - orientation (unit quaternion)
-- inertial sensor bias (accelerometer and gyroscope)
+- inertial sensor bias (accelerometer and gyroscope, `SensorFusionWithBiasEstimation.m` class only)
 
 Internally, the state is estimated for the position of the IMU (accelerometer and gyroscope) and is transformed to any point of interest.
 
@@ -39,7 +41,7 @@ end
 Take a look to the corresponding help pages for more information about the parameters.
 
 ## Automatic function generation
-The SensorFusion MATLAB class can automatically generate a function to be used as an embedded MATLAB function in Simulink.
+The SensorFusion MATLAB classes can automatically generate a function to be used as an embedded MATLAB function in Simulink.
 Imagine, you have 2 GNSS-receivers (both providing latitude, longitude, altitude), 3 one-dimensional velocity sensors and one compass. The MATLAB function would be generated as follows.
 ```
 functionName = 'MyINS';           % Give the function a name

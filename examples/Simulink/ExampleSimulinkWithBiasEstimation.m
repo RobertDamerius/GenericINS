@@ -11,7 +11,7 @@
 
     % Open and initialize model
     % The embedded MATLAB function can be generated with GenericINS.GenerateFunction('ExampleINS',[3],[3],[3]);
-    modelName = 'Model';
+    modelName = 'ModelWithBiasEstimation';
     sampletime = 0.05;
     simulationTime = (0:sampletime:sampletime*(size(input,1)-1))';
     open([modelName '.slx']);
