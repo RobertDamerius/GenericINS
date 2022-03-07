@@ -3,7 +3,16 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 % Version     Author                 Changes
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-% 20220307    Robert Damerius        Initial release.
+% 20200207    Robert Damerius        Initial release.
+% 20200515    Robert Damerius        Initialization makes the filter valid without the need for an additional prediction. Added numPredictions, numUpdates outputs to auto-generated function.
+% 20200629    Robert Damerius        Added missing sampletime for bias random walk of euler process model.
+% 20200730    Robert Damerius        Increased performance of SymmetricalAngle() function.
+% 20210209    Robert Damerius        Added output for estimated inertial sensor bias.
+% 20210521    Robert Damerius        Added measurement update for speed-over-ground data. Added return value for internal state and sqrt of covariance matrix for generated function.
+% 20210611    Robert Damerius        The class has been renamed to SensorFusion and is now part of the GenericINS package. Added filter timeout for auto-generated functions. At least one prediction is required after the initialization to make the filter valid again.
+% 20210728    Robert Damerius        Using a more accurate transformation in the position sensor model.
+% 20220307    Robert Damerius        Initialized internal state with valid quaternion. Updated internal normalization to produce a zero vector with a one in the first component.
+%                                    If the filter is reset, no prediction/updates are performed at the same time. A prediction in the next time-step is required to make the filter valid.
 % 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 classdef SensorFusion < handle
@@ -59,7 +68,7 @@ classdef SensorFusion < handle
             docs = [docs '    %% \n'];
             docs = [docs '    %% PARAMETERS\n'];
             docs = [docs '    %% time                       ... A scalar value indicating a monotonically increasing time in seconds.\n'];
-            docs = [docs '    %% initialState               ... 9-by-1 initial state vector to be used when the INS is reset. The elements are as follows:\n'];
+            docs = [docs '    %% initialState               ... 15-by-1 initial state vector to be used when the INS is reset. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: latitude     [rad]     Initial latitude of the position of the IMU.\n'];
             docs = [docs '    %%                                 2: longitude    [rad]     Initial longitude of the position of the IMU.\n'];
             docs = [docs '    %%                                 3: altitude     [m]       Initial altitude of the position of the IMU, positive upwards.\n'];
@@ -69,7 +78,13 @@ classdef SensorFusion < handle
             docs = [docs '    %%                                 7: roll         [rad]     Initial roll angle.\n'];
             docs = [docs '    %%                                 8: pitch        [rad]     Initial pitch angle.\n'];
             docs = [docs '    %%                                 9: yaw          [rad]     Initial yaw angle.\n'];
-            docs = [docs '    %% initialStdDev              ... 9-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
+            docs = [docs '    %%                                10: biasAccX     [m/(s*s)] Initial acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasAccY     [m/(s*s)] Initial acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasAccZ     [m/(s*s)] Initial acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                13: biasGyrX     [rad/s]   Initial angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                14: biasGyrY     [rad/s]   Initial angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                15: biasGyrZ     [rad/s]   Initial angular rate bias around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %% initialStdDev              ... 15-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
             docs = [docs '    %%                                too small values for the filter to converge. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: latitude     [rad]     Initial standard deviation for initial latitude.\n'];
             docs = [docs '    %%                                 2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
@@ -80,6 +95,12 @@ classdef SensorFusion < handle
             docs = [docs '    %%                                 7: orientationX           Initial standard deviation for x-component of orientation vector (axis-angle representation).\n'];
             docs = [docs '    %%                                 8: orientationY           Initial standard deviation for y-component of orientation vector (axis-angle representation).\n'];
             docs = [docs '    %%                                 9: orientationZ           Initial standard deviation for z-component of orientation vector (axis-angle representation).\n'];
+            docs = [docs '    %%                                10: biasAccX     [m/(s*s)] Initial standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasAccY     [m/(s*s)] Initial standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasAccZ     [m/(s*s)] Initial standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                13: biasGyrX     [rad/s]   Initial standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                14: biasGyrY     [rad/s]   Initial standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                15: biasGyrZ     [rad/s]   Initial standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
             docs = [docs '    %% reset                      ... Greater than 0.0 if filter should be reset/reinitialized, 0.0 otherwise. During an initialization the initial state and initial standard deviations are used.\n'];
             docs = [docs '    %% sampletime                 ... Discrete sampletime in seconds to be used for forward euler integration. Should be the elapsed time to the latest prediction.\n'];
             docs = [docs '    %% IMU_Data                   ... The 7-by-1 vector representing the IMU data where the elements are as follows:\n'];
@@ -90,13 +111,19 @@ classdef SensorFusion < handle
             docs = [docs '    %%                                 5: gyrX         [rad/s]   Angular rate around x-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 6: gyrY         [rad/s]   Angular rate around y-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 7: gyrZ         [rad/s]   Angular rate around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% IMU_StdDev                 ... 6-by-1 vector representing the standard deviation for inertial measurements and inertial biases. The elements are as follows:\n'];
+            docs = [docs '    %% IMU_StdDev                 ... 12-by-1 vector representing the standard deviation for inertial measurements and inertial biases. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: accX         [m/(s*s)] Standard deviation for acceleration in x-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 2: accY         [m/(s*s)] Standard deviation for acceleration in y-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 3: accZ         [m/(s*s)] Standard deviation for acceleration in z-direction of IMU sensor frame.\n'];
             docs = [docs '    %%                                 4: gyrX         [rad/s]   Standard deviation for angular rate around x-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 5: gyrY         [rad/s]   Standard deviation for angular rate around y-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                 6: gyrZ         [rad/s]   Standard deviation for angular rate around z-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 7: biasAccX     [m/(s*s)] Standard deviation for acceleration bias in x-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 8: biasAccY     [m/(s*s)] Standard deviation for acceleration bias in y-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                 9: biasAccZ     [m/(s*s)] Standard deviation for acceleration bias in z-direction of IMU sensor frame.\n'];
+            docs = [docs '    %%                                10: biasGyrX     [rad/s]   Standard deviation for angular rate bias around x-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                11: biasGyrY     [rad/s]   Standard deviation for angular rate bias around y-axis of IMU sensor frame.\n'];
+            docs = [docs '    %%                                12: biasGyrZ     [rad/s]   Standard deviation for angular rate bias around z-axis of IMU sensor frame.\n'];
             docs = [docs '    %% IMU_PositionBody2Sensor    ... Position of IMU sensor frame origin w.r.t. body frame origin in body frame coordinates (meters).\n'];
             docs = [docs '    %% IMU_DCMBody2Sensor         ... Direction cosine matrix to rotate measurements from body frame to sensor frame.\n'];
             args = 'initialState, initialStdDev, reset, sampletime, IMU_Data, IMU_StdDev, IMU_PositionBody2Sensor, IMU_DCMBody2Sensor';
@@ -268,7 +295,8 @@ classdef SensorFusion < handle
             docs = [docs '\n    %% speedOverGround            ... Speed over ground in meters per second.'];
             docs = [docs '\n    %% angleOfAttack              ... Angle of attack in radians.'];
             docs = [docs '\n    %% sideSlipAngle              ... Side slip angle in radians.'];
-            docs = [docs '\n    %% internalX                  ... 10-by-1 state vector representing the internal motion state with respect to the IMU. Elements are as follows:'];
+            docs = [docs '\n    %% inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].'];
+            docs = [docs '\n    %% internalX                  ... 16-by-1 state vector representing the internal motion state with respect to the IMU. Elements are as follows:'];
             docs = [docs '\n    %%                            ...  1: Latitude in radians.'];
             docs = [docs '\n    %%                            ...  2: Longitude in radians.'];
             docs = [docs '\n    %%                            ...  3: Altitude in meters (positive upwards).'];
@@ -279,13 +307,19 @@ classdef SensorFusion < handle
             docs = [docs '\n    %%                            ...  8: First element of vector part of unit quaternion.'];
             docs = [docs '\n    %%                            ...  9: Second element of vector part of unit quaternion.'];
             docs = [docs '\n    %%                            ... 10: Third element of vector part of unit quaternion.'];
-            docs = [docs '\n    %% internalS                  ... 9-by-9 matrix representing the internal square root of the state covariance matrix. This matrix relates to the internalX state. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).'];
+            docs = [docs '\n    %%                            ... 11: Accelerometer bias (x) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 12: Accelerometer bias (y) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 13: Accelerometer bias (z) in m/s^2.'];
+            docs = [docs '\n    %%                            ... 14: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %%                            ... 15: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %%                            ... 16: Gyroscope bias (x) in rad/s.'];
+            docs = [docs '\n    %% internalS                  ... 15-by-15 matrix representing the internal square root of the state covariance matrix. This matrix relates to the internalX state. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             % Generate the final function code
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, internalX, internalS] = ' functionName '(time, ' args ')\n' docs '\n'];
-            code = [code '    assert(isscalar(time) && (9 == size(initialState,1)) && (1 == size(initialState,2)) && (9 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
+            code = ['function [valid, numPredictions, numUpdates, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias, internalX, internalS] = ' functionName '(time, ' args ')\n' docs '\n'];
+            code = [code '    assert(isscalar(time) && (15 == size(initialState,1)) && (1 == size(initialState,2)) && (15 == size(initialStdDev,1)) && (1 == size(initialStdDev,2)) && isscalar(reset) && isscalar(sampletime) && (7 == size(IMU_Data,1)) && (1 == size(IMU_Data,2)) && (3 == size(IMU_PositionBody2Sensor,1)) && (1 == size(IMU_PositionBody2Sensor,2)) && (3 == size(IMU_DCMBody2Sensor,1)) && (3 == size(IMU_DCMBody2Sensor,2)));\n'];
             code = [code '    persistent prevTime; if(isempty(prevTime)), prevTime = time; end\n'];
             code = [code '    persistent ins; if(isempty(ins)), ins = GenericINS.SensorFusion(); end\n'];
             code = [code '    persistent imuStdDevBuffer; if(isempty(imuStdDevBuffer)), imuStdDevBuffer = IMU_StdDev; end\n\n'];
@@ -293,9 +327,9 @@ classdef SensorFusion < handle
             code = [code '    imuStdDevChanged = (sum(abs(imuStdDevBuffer - IMU_StdDev) > 100*eps) > 0.0);\n'];
             code = [code '    eventReset = (reset > 0.0);\n'];
             code = [code '    if(eventReset)\n'];
-            code = [code '        ins.Initialize(initialState(1:3), initialState(4:6), initialState(7:9), initialStdDev(1:3), initialStdDev(4:6), initialStdDev(7:9), IMU_StdDev(1:3), IMU_StdDev(4:6));\n'];
+            code = [code '        ins.Initialize(initialState(1:3), initialState(4:6), initialState(7:9), initialState(10:12), initialState(13:15), initialStdDev(1:3), initialStdDev(4:6), initialStdDev(7:9), initialStdDev(10:12), initialStdDev(13:15), IMU_StdDev(1:3), IMU_StdDev(4:6), IMU_StdDev(7:9), IMU_StdDev(10:12));\n'];
             code = [code '    elseif(imuStdDevChanged)\n'];
-            code = [code '        ins.ResetInertialStandardDeviation(IMU_StdDev(1:3), IMU_StdDev(4:6));\n'];
+            code = [code '        ins.ResetInertialStandardDeviation(IMU_StdDev(1:3), IMU_StdDev(4:6), IMU_StdDev(7:9), IMU_StdDev(10:12));\n'];
             code = [code '    end\n'];
             code = [code '    imuStdDevBuffer = IMU_StdDev;\n'];
             code = [code '    numPredictions = int32(0);\n'];
@@ -313,10 +347,10 @@ classdef SensorFusion < handle
             code = [code '        ins.MakeInvalid();\n'];
             code = [code '    end\n\n'];
             code = [code '    %% Set output values\n'];
-            code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = ins.GetMotionState();\n'];
+            code = [code '    [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = ins.GetMotionState();\n'];
             code = [code '    [internalX, internalS] = ins.GetInternalState();\n'];
-            code = [code '    internalX = reshape(internalX, [10 1]);\n'];
-            code = [code '    internalS = reshape(internalS, [9 9]);\n'];
+            code = [code '    internalX = reshape(internalX, [16 1]);\n'];
+            code = [code '    internalS = reshape(internalS, [15 15]);\n'];
             code = [code 'end\n\n'];
 
             % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -363,26 +397,38 @@ classdef SensorFusion < handle
                 end
             end
         end
-        function Initialize(obj, initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, stdAcc, stdGyr)
+        function Initialize(obj, initialPositionLLA, initialVelocityUVW, initialOrientationRollPitchYaw, initialBiasAcc, initialBiasGyr, initialStdPositionLLA, initialStdVelocityUVW, initialStdOrientationVector, initialStdBiasAcc, initialStdBiasGyr, stdAcc, stdGyr, stdAccBias, stdGyrBias)
             %GenericINS.SensorFusion.Initialize Initialize or re-initialize the INS.
             % 
             % PARAMETERS
             % initialPositionLLA             ... Initial geographic position at the location of the IMU, [lat (rad); lon (rad); alt (m, positive upwards)].
             % initialVelocityUVW             ... Initial body-fixed velocity at the location of the IMU, [u (m/s); v (m/s); r (m/s)].
             % initialOrientationRollPitchYaw ... Initial orientation of the body frame, [roll (rad); pitch (rad); yaw (rad)].
+            % initialBiasAcc                 ... Initial acceleration bias in m/s^2.
+            % initialBiasGyr                 ... Initial angular rate bias in rad/s.
             % initialStdPositionLLA          ... Initial standard deviation for the geographic position. Should be an estimate of the standard deviation of initialPositionLLA.
             % initialStdVelocityUVW          ... Initial standard deviation for the body-fixed velocity. Should be an estimate of the standard deviation of initialVelocityUVW.
             % initialStdOrientationVector    ... Initial standard deviation for the orientation vector (axis-angle).
+            % initialStdBiasAcc              ... Initial standard deviation for acceleration bias.
+            % initialStdBiasGyr              ... Initial standard deviation for angular rate bias.
             % stdAcc                         ... Standard deviation for acceleration in m/s^2 to be used for motion prediction.
             % stdGyr                         ... Standard deviation for angular rate in rad/s to be used for motion prediction.
+            % stdAccBias                     ... Standard deviation for acceleration bias in m/s^2 to be used for motion prediction.
+            % stdGyrBias                     ... Standard deviation for angular rate bias in rad/s to be used for motion prediction.
             assert((3 == size(initialPositionLLA,1)) && (1 == size(initialPositionLLA,2)) && isa(initialPositionLLA, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialPositionLLA" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialVelocityUVW,1)) && (1 == size(initialVelocityUVW,2)) && isa(initialVelocityUVW, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialVelocityUVW" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialOrientationRollPitchYaw,1)) && (1 == size(initialOrientationRollPitchYaw,2)) && isa(initialOrientationRollPitchYaw, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialOrientationRollPitchYaw" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialBiasAcc,1)) && (1 == size(initialBiasAcc,2)) && isa(initialBiasAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialBiasAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialBiasGyr,1)) && (1 == size(initialBiasGyr,2)) && isa(initialBiasGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialBiasGyr" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdPositionLLA,1)) && (1 == size(initialStdPositionLLA,2)) && isa(initialStdPositionLLA, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdPositionLLA" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdVelocityUVW,1)) && (1 == size(initialStdVelocityUVW,2)) && isa(initialStdVelocityUVW, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdVelocityUVW" must be a 3-by-1 vector of type double!');
             assert((3 == size(initialStdOrientationVector,1)) && (1 == size(initialStdOrientationVector,2)) && isa(initialStdOrientationVector, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdOrientationVector" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdBiasAcc,1)) && (1 == size(initialStdBiasAcc,2)) && isa(initialStdBiasAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdBiasAcc" must be a 3-by-1 vector of type double!');
+            assert((3 == size(initialStdBiasGyr,1)) && (1 == size(initialStdBiasGyr,2)) && isa(initialStdBiasGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "initialStdBiasGyr" must be a 3-by-1 vector of type double!');
             assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdAcc" must be a 3-by-1 vector of type double!');
             assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdGyr" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdAccBias" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.SensorFusion.Initialize(): "stdGyrBias" must be a 3-by-1 vector of type double!');
 
             % Initial position
             [lat, lon] = GenericINS.SensorFusion.LatLon(initialPositionLLA(1), initialPositionLLA(2));
@@ -406,8 +452,12 @@ classdef SensorFusion < handle
             DCM_b2n = GenericINS.SensorFusion.Cb2n(obj.x(7:10));
             obj.x(4:6) = DCM_b2n * initialVelocityUVW;
 
+            % Initial inertial biases
+            obj.x(11:13) = initialBiasAcc;
+            obj.x(14:16) = initialBiasGyr;
+
             % Initial square root covariance matrix
-            obj.S = diag([initialStdPositionLLA; DCM_b2n * initialStdVelocityUVW; initialStdOrientationVector; stdAcc; stdGyr]);
+            obj.S = diag([initialStdPositionLLA; DCM_b2n * initialStdVelocityUVW; initialStdOrientationVector; initialStdBiasAcc; initialStdBiasGyr; stdAcc; stdGyr; stdAccBias; stdGyrBias]);
 
             % Initialize additional INS properties
             obj.spU2D = false;
@@ -415,15 +465,19 @@ classdef SensorFusion < handle
             obj.initialized = true;
             obj.firstPrediction = false;
         end
-        function ResetInertialStandardDeviation(obj, stdAcc, stdGyr)
+        function ResetInertialStandardDeviation(obj, stdAcc, stdGyr, stdAccBias, stdGyrBias)
             %GenericINS.SensorFusion.ResetInertialStandardDeviation Reset the standard deviations for the inertial sensors.
             % 
             % PARAMETERS
             % stdAcc            ... Standard deviation for acceleration in m/s^2.
             % stdGyr            ... Standard deviation for angular rate in rad/s.
+            % stdAccBias        ... Standard deviation for acceleration bias in m/s^2.
+            % stdGyrBias        ... Standard deviation for angular rate bias in rad/s.
             assert((3 == size(stdAcc,1)) && (1 == size(stdAcc,2)) && isa(stdAcc, 'double'), 'GenericINS.SensorFusion.Predict(): "stdAcc" must be a 3-by-1 vector of type double!');
             assert((3 == size(stdGyr,1)) && (1 == size(stdGyr,2)) && isa(stdGyr, 'double'), 'GenericINS.SensorFusion.Predict(): "stdGyr" must be a 3-by-1 vector of type double!');
-            obj.S((GenericINS.SensorFusion.DIM_XS + int32(1)):end,(GenericINS.SensorFusion.DIM_XS + int32(1)):end) = diag([stdAcc; stdGyr]);
+            assert((3 == size(stdAccBias,1)) && (1 == size(stdAccBias,2)) && isa(stdAccBias, 'double'), 'GenericINS.SensorFusion.Predict(): "stdAccBias" must be a 3-by-1 vector of type double!');
+            assert((3 == size(stdGyrBias,1)) && (1 == size(stdGyrBias,2)) && isa(stdGyrBias, 'double'), 'GenericINS.SensorFusion.Predict(): "stdGyrBias" must be a 3-by-1 vector of type double!');
+            obj.S((GenericINS.SensorFusion.DIM_XS + int32(1)):end,(GenericINS.SensorFusion.DIM_XS + int32(1)):end) = diag([stdAcc; stdGyr; stdAccBias; stdGyrBias]);
         end
         function Predict(obj, imuData, sampletime, dcmIMUBody2Sensor, posIMUBody2Sensor)
             %GenericINS.SensorFusion.Predict Perform a prediction step using inertial measurements. The prediction is only calculated if the INS is initialized.
@@ -594,7 +648,7 @@ classdef SensorFusion < handle
             assert((3 == size(dcmBody2Sensor,1)) && (3 == size(dcmBody2Sensor,2)) && isa(dcmBody2Sensor, 'double'), 'GenericINS.SensorFusion.UpdateOrientation1D(): "dcmBody2Sensor" must be a 3-by-3 matrix of type double!');
             obj.UpdateOrientation(1, measurementYaw, stdYaw, dcmBody2Sensor);
         end
-        function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle] = GetMotionState(obj)
+        function [valid, positionLLA, orientationQuaternionWXYZ, orientationRollPitchYaw, velocityNED, velocityUVW, velocityPQR, courseOverGround, speedOverGround, angleOfAttack, sideSlipAngle, inertialSensorBias] = GetMotionState(obj)
             %GenericINS.SensorFusion.GetMotionState Get the motion state.
             % 
             % RETURN
@@ -609,6 +663,7 @@ classdef SensorFusion < handle
             % speedOverGround            ... Speed over ground in meters per second.
             % angleOfAttack              ... Angle of attack in radians.
             % sideSlipAngle              ... Side slip angle in radians.
+            % inertialSensorBias         ... Inertial sensor bias [accX (m/s^2); accY (m/s^2); accZ (m/s^2); gyrX (rad/s); gyrY (rad/s); gyrZ (rad/s)].
             valid = obj.initialized && obj.firstPrediction;
 
             % WGS84 properties
@@ -630,7 +685,7 @@ classdef SensorFusion < handle
             % Rotational velocity (remove bias and align to body frame)
             w_ie = [GenericINS.SensorFusion.OMEGA_EARTH * cos(obj.x(1)); 0; -GenericINS.SensorFusion.OMEGA_EARTH * sin(obj.x(1))];
             w_en = [(obj.x(5) / ((Re + obj.x(3)))); -(obj.x(4) / (Rn + obj.x(3))); -(obj.x(5) / (Re + obj.x(3)))*tan(obj.x(1))];
-            velocityPQR = obj.dcmIMUBody2Sensor' * obj.gyrRaw - Cq' * (w_ie + w_en);
+            velocityPQR = obj.dcmIMUBody2Sensor' * (obj.gyrRaw - obj.x(14:16)) - Cq' * (w_ie + w_en);
 
             % Velocity in the navigation frame
             velocityNED = obj.x(4:6) - Cq * cross(velocityPQR, obj.posIMUBody2Sensor);
@@ -643,6 +698,9 @@ classdef SensorFusion < handle
             speedOverGround = sqrt(velocityNED(1:2)'*velocityNED(1:2));
             angleOfAttack = GenericINS.SensorFusion.SymmetricalAngle(atan2(velocityNED(3), speedOverGround));
             sideSlipAngle = GenericINS.SensorFusion.SymmetricalAngle(courseOverGround - yaw);
+
+            % Inertial sensor bias
+            inertialSensorBias = obj.x(11:16);
         end
         function [x, S] = GetInternalState(obj)
             %GenericINS.SensorFusion.GetInternalState Get the internal state of the filter.
@@ -659,7 +717,13 @@ classdef SensorFusion < handle
             %        8: First element of vector part of unit quaternion.
             %        9: Second element of vector part of unit quaternion.
             %       10: Third element of vector part of unit quaternion.
-            % S ... 9-by-9 matrix representing the square root of the state covariance matrix. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).
+            %       11: Accelerometer bias (x) in m/s^2.
+            %       12: Accelerometer bias (y) in m/s^2.
+            %       13: Accelerometer bias (z) in m/s^2.
+            %       14: Gyroscope bias (x) in rad/s.
+            %       15: Gyroscope bias (x) in rad/s.
+            %       16: Gyroscope bias (x) in rad/s.
+            % S ... 15-by-15 matrix representing the square root of the state covariance matrix. Note that the uncertainty of the quaternion (4D) is represented by an orientation vector (3D).
             x = obj.x(int32(1):GenericINS.SensorFusion.DIM_X);
             S = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS);
         end
@@ -712,7 +776,8 @@ classdef SensorFusion < handle
             obj.dX = [obj.Xi(1,:) - repmat(obj.x(1), 1, GenericINS.SensorFusion.NUM_SP); ...
                   GenericINS.SensorFusion.SymmetricalAngle(obj.Xi(2,:) - repmat(obj.x(2), 1, GenericINS.SensorFusion.NUM_SP)); ...
                   obj.Xi(3:6,:) - repmat(obj.x(3:6), 1, GenericINS.SensorFusion.NUM_SP); ...
-                  GenericINS.SensorFusion.Q2OV(dXq)];
+                  GenericINS.SensorFusion.Q2OV(dXq); ...
+                  obj.Xi(11:GenericINS.SensorFusion.DIM_X,:) - repmat(obj.x(11:GenericINS.SensorFusion.DIM_X), 1, GenericINS.SensorFusion.NUM_SP)];
 
             % Add pivot angle to state (and also sigma-points for an upcomming measurement update)
             obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2) + pivotAngle);
@@ -808,6 +873,7 @@ classdef SensorFusion < handle
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
             obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
             obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
             Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
@@ -887,6 +953,7 @@ classdef SensorFusion < handle
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
             obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
             obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
             Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
@@ -950,6 +1017,7 @@ classdef SensorFusion < handle
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
             obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
             obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
             Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
@@ -1034,6 +1102,7 @@ classdef SensorFusion < handle
             obj.x(1:6) = obj.x(1:6) + dx(1:6);
             obj.x(2) = GenericINS.SensorFusion.SymmetricalAngle(obj.x(2));
             obj.x(7:10) = GenericINS.SensorFusion.Qdot(GenericINS.SensorFusion.OV2Q(dx(7:9)), obj.x(7:10));
+            obj.x(11:GenericINS.SensorFusion.DIM_X) = obj.x(11:GenericINS.SensorFusion.DIM_X) + dx(10:end);
 
             % Update sqrt of covariance using cholesky downdate. Because MATLABs cholesky update uses the UPPER triangle we have to transpose Sx.
             Sx_UPPER = obj.S(int32(1):GenericINS.SensorFusion.DIM_XS,int32(1):GenericINS.SensorFusion.DIM_XS)';
@@ -1325,9 +1394,9 @@ classdef SensorFusion < handle
             [Rn, Re, R0] = GenericINS.SensorFusion.WGS84(x(1));
             localGravity = GenericINS.SensorFusion.Gravity(x(3), x(1), R0);
 
-            % Inputs: transform noisy acceleration and angular rate to b-frame
-            f_ib = dcmIMUBody2Sensor' * (u(1:3) + w(1:3));
-            w_ib = dcmIMUBody2Sensor' * (u(4:6) + w(4:6));
+            % Inputs: remove estimated biases and align to b-frame
+            f_ib = dcmIMUBody2Sensor' * (u(1:3) + w(1:3) - x(11:13));
+            w_ib = dcmIMUBody2Sensor' * (u(4:6) + w(4:6) - x(14:16));
 
             % Ensure Current attitude
             x(7:10) = GenericINS.SensorFusion.Normalize(x(7:10));
@@ -1355,6 +1424,10 @@ classdef SensorFusion < handle
             Omega = [0 -w_nb(1) -w_nb(2) -w_nb(3); w_nb(1) 0 w_nb(3) -w_nb(2); w_nb(2) -w_nb(3) 0 w_nb(1); w_nb(3) w_nb(2) -w_nb(1) 0];
             xOut(7:10) = (eye(4)*(1 - Ts*Ts*(w_nb(1)*w_nb(1) + w_nb(2)*w_nb(2) + w_nb(3)*w_nb(3))/8) + 0.5*Ts*Omega) * x(7:10);
             xOut(7:10) = GenericINS.SensorFusion.Normalize(xOut(7:10));
+
+            % Predict inertial biases (Random Walk)
+            xOut(11:13) = x(11:13) + Ts * w(7:9);
+            xOut(14:16) = x(14:16) + Ts * w(10:12);
         end
         function y = SensorModelPosition(x, posIMUBody2Sensor, posPOSBody2Sensor)
             % Vector from IMU to GNSS in NED-frame
@@ -1372,7 +1445,7 @@ classdef SensorFusion < handle
 
             % Angular rate of body with respect to the earth
             w_ie = GenericINS.SensorFusion.OMEGA_EARTH * [cos(x(1)); 0; -sin(x(1))];
-            w_eb = dcmIMUBody2Sensor' * gyrRaw - DCM_n2b * w_ie;
+            w_eb = dcmIMUBody2Sensor' * (gyrRaw - x(14:16)) - DCM_n2b * w_ie;
 
             % Additional velocity due to angular speed + sensor alignment in b-frame
             v_b = cross(w_eb, posBody2Sensor - posIMUBody2Sensor);
@@ -1390,7 +1463,7 @@ classdef SensorFusion < handle
 
             % Angular rate of body with respect to the earth
             w_ie = GenericINS.SensorFusion.OMEGA_EARTH * [cos(x(1)); 0; -sin(x(1))];
-            w_eb = dcmIMUBody2Sensor' * gyrRaw - DCM_n2b * w_ie;
+            w_eb = dcmIMUBody2Sensor' * (gyrRaw - x(14:16)) - DCM_n2b * w_ie;
 
             % Additional velocity due to angular speed + sensor alignment in b-frame
             v_b = cross(w_eb, posBody2Sensor - posIMUBody2Sensor);
@@ -1415,15 +1488,15 @@ classdef SensorFusion < handle
     end
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
-        DIM_X  = int32(10);                                                       % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to unvertainty S.
-        DIM_W  = int32(6);                                                        % Dimension of process noise (w).
+        DIM_X  = int32(16);                                                                                           % Dimension of state vector (x).
+        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                                          % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_W  = int32(12);                                                                                           % Dimension of process noise (w).
         DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;   % Dimension of augmented state vector.
         DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
-        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                       % Number of sigma-points.
+        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                                         % Number of sigma-points.
 
         % WGS84 Properties
-        OMEGA_EARTH = 7.292115e-5;                                                % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
+        OMEGA_EARTH = 7.292115e-5;                                                                                    % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.
