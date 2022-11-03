@@ -1202,7 +1202,7 @@ classdef SensorFusionNoBiasEstimation < handle
             R0 = sqrt(Re * Rn);
         end
         function gravity = GravityWGS84(latitude, longitude, altitude)
-            %GenericINS.SensorFusion.GravityWGS84 Calculate the gravity according to the WGS84 reference model. This implementation
+            %GenericINS.SensorFusionNoBiasEstimation.GravityWGS84 Calculate the gravity according to the WGS84 reference model. This implementation
             % is based on MATLAB's gravitywgs84 function using the close approximation method, e.g. gravitywgs84(h,lat,lon,'CloseApprox',[false false false 0])
             % including atmosphere and centrifugal effects and excluding the presence of a precessing reference frame.
             % 
@@ -1394,7 +1394,7 @@ classdef SensorFusionNoBiasEstimation < handle
 
             % WGS84 properties
             [Rn, Re, ~] = GenericINS.SensorFusionNoBiasEstimation.WGS84(x(1));
-            localGravity = GenericINS.SensorFusionNoBiasEstimation.Gravity(x(1), x(2), x(3));
+            localGravity = GenericINS.SensorFusionNoBiasEstimation.GravityWGS84(x(1), x(2), x(3));
 
             % Inputs: transform noisy acceleration and angular rate to b-frame
             f_ib = dcmIMUBody2Sensor' * (u(1:3) + w(1:3));
@@ -1486,15 +1486,15 @@ classdef SensorFusionNoBiasEstimation < handle
     end
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
-        DIM_X  = int32(10);                                                       % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusionNoBiasEstimation.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to unvertainty S.
-        DIM_W  = int32(6);                                                        % Dimension of process noise (w).
+        DIM_X  = int32(10);                                                                                       % Dimension of state vector (x).
+        DIM_XS = GenericINS.SensorFusionNoBiasEstimation.DIM_X - int32(1);                                        % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_W  = int32(6);                                                                                        % Dimension of process noise (w).
         DIM_L  = GenericINS.SensorFusionNoBiasEstimation.DIM_X + GenericINS.SensorFusionNoBiasEstimation.DIM_W;   % Dimension of augmented state vector.
         DIM_LS = GenericINS.SensorFusionNoBiasEstimation.DIM_XS + GenericINS.SensorFusionNoBiasEstimation.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
-        NUM_SP = GenericINS.SensorFusionNoBiasEstimation.DIM_LS + int32(2);                       % Number of sigma-points.
+        NUM_SP = GenericINS.SensorFusionNoBiasEstimation.DIM_LS + int32(2);                                       % Number of sigma-points.
 
         % WGS84 Properties
-        OMEGA_EARTH = 7.292115e-5;                                                % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
+        OMEGA_EARTH = 7.292115e-5;                                                                                % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.

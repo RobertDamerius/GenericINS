@@ -291,7 +291,7 @@ classdef SensorFusion < handle
             docs = [docs '\n    %% orientationRollPitchYaw    ... Euler angles according to the ZYX-convention.'];
             docs = [docs '\n    %% velocityNED                ... Translational velocity [m/s] of the body frame given in navigation frame coordinates, excluding earth rotation and transport rate.'];
             docs = [docs '\n    %% velocityUVW                ... Translational velocity [m/s] of the body frame given in body frame coordinates, excluding earth rotation and transport rate.'];
-            docs = [docs '\n    %% velocityPQR                ... Rotational velocity [rad/s] of the body frame with respect to the navigation frame, excluding earth rotation and transport rate.'];
+            docs = [docs '\n    %% velocityPQR                ... Rotational velocity [rad/s] of the body frame with respect to the navigation frame, excluding earth rotation, transport rate and inertial sensor biases.'];
             docs = [docs '\n    %% courseOverGround           ... Course over ground angle in radians.'];
             docs = [docs '\n    %% speedOverGround            ... Speed over ground in meters per second.'];
             docs = [docs '\n    %% angleOfAttack              ... Angle of attack in radians.'];
@@ -1559,15 +1559,15 @@ classdef SensorFusion < handle
     end
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
-        DIM_X  = int32(16);                                                                                           % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                                          % Dimension of state vector (x) with respect to unvertainty S.
-        DIM_W  = int32(12);                                                                                           % Dimension of process noise (w).
+        DIM_X  = int32(16);                                                       % Dimension of state vector (x).
+        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_W  = int32(12);                                                       % Dimension of process noise (w).
         DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;   % Dimension of augmented state vector.
         DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
-        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                                         % Number of sigma-points.
+        NUM_SP = GenericINS.SensorFusion.DIM_LS + int32(2);                       % Number of sigma-points.
 
         % WGS84 Properties
-        OMEGA_EARTH = 7.292115e-5;                                                                                    % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
+        OMEGA_EARTH = 7.292115e-5;                                                % Angular rate [rad/s] of the earth w.r.t. the inertial frame.
     end
     properties(Access=private)
         initialized;       % True if filter is initialized, false otherwise.
