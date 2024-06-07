@@ -2,184 +2,184 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <!-- Generiert durch Microsoft Visio, SVG Export GenericINS.svg GenericINS -->
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:ev="http://www.w3.org/2001/xml-events"
-		xmlns:v="http://schemas.microsoft.com/visio/2003/SVGExtensions/" width="3.45668in" height="2.58683in"
-		viewBox="0 0 248.881 186.252" xml:space="preserve" color-interpolation-filters="sRGB" class="st11">
-	<v:documentProperties v:langID="1031" v:metric="true" v:viewMarkup="false">
-		<v:userDefs>
-			<v:ud v:nameU="msvNoAutoConnect" v:val="VT0(1):26"/>
-		</v:userDefs>
-	</v:documentProperties>
+        xmlns:v="http://schemas.microsoft.com/visio/2003/SVGExtensions/" width="3.45668in" height="2.58683in"
+        viewBox="0 0 248.881 186.252" xml:space="preserve" color-interpolation-filters="sRGB" class="st11">
+    <v:documentProperties v:langID="1031" v:metric="true" v:viewMarkup="false">
+        <v:userDefs>
+            <v:ud v:nameU="msvNoAutoConnect" v:val="VT0(1):26"/>
+        </v:userDefs>
+    </v:documentProperties>
 
-	<style type="text/css">
-	<![CDATA[
-		.st1 {stroke:#686868;stroke-linecap:round;stroke-linejoin:round;stroke-width:3}
-		.st2 {fill:#f2f2f3;stroke:#3d4956;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-		.st3 {fill:#4c5a69;font-family:Arial;font-size:1.16666em;font-weight:bold}
-		.st4 {fill:#ffffff;stroke:#3d4956;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-		.st5 {fill:url(#grad0-43);stroke:#3d4956;stroke-width:2}
-		.st6 {visibility:visible}
-		.st7 {fill:none;filter:url(#filter_2.6666667461395);stroke:none;stroke-linecap:butt}
-		.st8 {fill:#ffffff;filter:url(#filter_2.6666667461395);font-family:Arial;font-size:1.5em;font-weight:bold}
-		.st9 {fill:none;stroke:none;stroke-linecap:butt;stroke-width:1.25}
-		.st10 {fill:#686868;font-family:Arial;font-size:1.5em;font-weight:bold}
-		.st11 {fill:none;fill-rule:evenodd;font-size:12px;overflow:visible;stroke-linecap:square;stroke-miterlimit:3}
-	]]>
-	</style>
+    <style type="text/css">
+    <![CDATA[
+        .st1 {stroke:#686868;stroke-linecap:round;stroke-linejoin:round;stroke-width:3}
+        .st2 {fill:#f2f2f3;stroke:#3d4956;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
+        .st3 {fill:#4c5a69;font-family:Arial;font-size:1.16666em;font-weight:bold}
+        .st4 {fill:#ffffff;stroke:#3d4956;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
+        .st5 {fill:url(#grad0-43);stroke:#3d4956;stroke-width:2}
+        .st6 {visibility:visible}
+        .st7 {fill:none;filter:url(#filter_2.6666667461395);stroke:none;stroke-linecap:butt}
+        .st8 {fill:#ffffff;filter:url(#filter_2.6666667461395);font-family:Arial;font-size:1.5em;font-weight:bold}
+        .st9 {fill:none;stroke:none;stroke-linecap:butt;stroke-width:1.25}
+        .st10 {fill:#686868;font-family:Arial;font-size:1.5em;font-weight:bold}
+        .st11 {fill:none;fill-rule:evenodd;font-size:12px;overflow:visible;stroke-linecap:square;stroke-miterlimit:3}
+    ]]>
+    </style>
 
-	<defs id="Patterns_And_Gradients">
-		<linearGradient id="grad0-43" x1="0" y1="0" x2="1" y2="0" gradientTransform="rotate(90 0.5 0.5)">
-			<stop offset="0.02" stop-color="#e1e2e4" stop-opacity="1"/>
-			<stop offset="0.34" stop-color="#cfd1d3" stop-opacity="1"/>
-			<stop offset="0.96" stop-color="#979ca2" stop-opacity="1"/>
-		</linearGradient>
-	</defs>
-	<defs id="Filters">
-		<filter id="filter_2.6666667461395">
-			<feGaussianBlur stdDeviation="2.6666667461395"/>
-		</filter>
-	</defs>
-	<g v:mID="0" v:index="1" v:groupContext="foregroundPage">
-		<v:userDefs>
-			<v:ud v:nameU="msvThemeOrder" v:val="VT0(0):26"/>
-		</v:userDefs>
-		<title>GenericINS</title>
-		<v:pageProperties v:drawingScale="0.0393701" v:pageScale="0.0393701" v:drawingUnits="24" v:shadowOffsetX="8.50394"
-				v:shadowOffsetY="-8.50394"/>
-		<g id="shape27-1" v:mID="27" v:groupContext="shape" transform="translate(-26.3786,156.906) rotate(-90)">
-			<title>Tabelle.27</title>
-			<path d="M0 186.25 L63.78 186.25" class="st1"/>
-		</g>
-		<g id="shape28-4" v:mID="28" v:groupContext="shape" transform="translate(-26.3786,93.126) rotate(-90)">
-			<title>Tabelle.28</title>
-			<path d="M0 186.25 L63.78 186.25" class="st1"/>
-		</g>
-		<g id="shape29-7" v:mID="29" v:groupContext="shape" transform="translate(120.536,286.155) rotate(-149.47)">
-			<title>Tabelle.29</title>
-			<path d="M0 186.25 L64.17 186.25" class="st1"/>
-		</g>
-		<g id="shape30-10" v:mID="30" v:groupContext="shape" transform="translate(66.7991,-68.2028) rotate(-29.9816)">
-			<title>Tabelle.30</title>
-			<path d="M0 186.25 L63.81 186.25" class="st1"/>
-		</g>
-		<g id="shape21-13" v:mID="21" v:groupContext="shape" transform="translate(-97.2447,156.906) rotate(-90)">
-			<title>Tabelle.21</title>
-			<path d="M0 186.25 L63.78 186.25" class="st1"/>
-		</g>
-		<g id="shape10-16" v:mID="10" v:groupContext="shape" transform="translate(-59.3426,-36.313) rotate(-29.9816)">
-			<title>Tabelle.10</title>
-			<path d="M0 186.25 L63.81 186.25" class="st1"/>
-		</g>
-		<g id="shape11-19" v:mID="11" v:groupContext="shape" transform="translate(126.806,-100.093) rotate(29.9816)">
-			<title>Tabelle.11</title>
-			<path d="M0 186.25 L63.81 186.25" class="st1"/>
-		</g>
-		<g id="shape12-22" v:mID="12" v:groupContext="shape" transform="translate(-97.2447,93.126) rotate(-90)">
-			<title>Tabelle.12</title>
-			<path d="M0 186.25 L63.78 186.25" class="st1"/>
-		</g>
-		<g id="shape3-25" v:mID="3" v:groupContext="shape" transform="translate(5.38521,-96.6693)">
-			<title>Sechseck.3</title>
-			<desc>AHRS</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st2"/>
-			<text x="8.51" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>AHRS</text>		</g>
-		<g id="shape4-28" v:mID="4" v:groupContext="shape" transform="translate(131.527,-128.559)">
-			<title>Sechseck.4</title>
-			<desc>. . .</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st4"/>
-			<text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>		</g>
-		<g id="shape6-31" v:mID="6" v:groupContext="shape" transform="translate(5.38521,-32.8898)">
-			<title>Sechseck.6</title>
-			<desc>DVL</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st2"/>
-			<text x="14.35" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>DVL</text>		</g>
-		<g id="shape7-34" v:mID="7" v:groupContext="shape" transform="translate(131.527,-1)">
-			<title>Sechseck.7</title>
-			<desc>. . .</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st4"/>
-			<text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>		</g>
-		<g id="shape8-37" v:mID="8" v:groupContext="shape" transform="translate(60.6608,-128.559)">
-			<title>Sechseck.8</title>
-			<desc>GNSS</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st2"/>
-			<text x="8.51" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>GNSS</text>		</g>
-		<g id="shape19-40" v:mID="19" v:groupContext="shape" transform="translate(56.1254,-64.7795)">
-			<title>Tabelle.19</title>
-			<path d="M16.37 129.56 L119.96 129.56 L136.33 157.91 L119.96 186.25 L16.37 186.25 L0 157.91 L16.37 129.56 Z"
-					class="st5"/>
-		</g>
-		<g id="shape20-44" v:mID="20" v:groupContext="shape" transform="translate(60.6608,-1)">
-			<title>Sechseck.20</title>
-			<desc>IMU</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st2"/>
-			<text x="15.52" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>IMU</text>		</g>
-		<g id="shape22-47" v:mID="22" v:groupContext="shape" transform="translate(48.2901,-83.126)">
-			<title>Tabelle.22</title>
-			<desc>Generic INS</desc>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="76" cy="176.252" width="152" height="20"/>
-			<g id="shadow22-48" v:groupContext="shadow" v:shadowOffsetX="7.2E-08" v:shadowOffsetY="0" v:shadowType="1"
-					transform="matrix(1,0,0,1,7.2E-08,0)" class="st6">
-				<rect x="0" y="166.252" width="152" height="20" class="st7"/>
-				<text x="24.98" y="181.65" class="st8" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>Generic INS</text>			</g>
-			<rect x="0" y="166.252" width="152" height="20" class="st9"/>
-			<text x="24.98" y="181.65" class="st10" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>Generic INS</text>		</g>
-		<g id="shape25-55" v:mID="25" v:groupContext="shape" transform="translate(186.803,-96.6693)">
-			<title>Sechseck.25</title>
-			<desc>. . .</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st4"/>
-			<text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>		</g>
-		<g id="shape26-58" v:mID="26" v:groupContext="shape" transform="translate(186.803,-32.1811)">
-			<title>Sechseck.26</title>
-			<desc>. . .</desc>
-			<v:userDefs>
-				<v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
-			</v:userDefs>
-			<v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
-			<v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
-			<path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
-					class="st4"/>
-			<text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>		</g>
-	</g>
+    <defs id="Patterns_And_Gradients">
+        <linearGradient id="grad0-43" x1="0" y1="0" x2="1" y2="0" gradientTransform="rotate(90 0.5 0.5)">
+            <stop offset="0.02" stop-color="#e1e2e4" stop-opacity="1"/>
+            <stop offset="0.34" stop-color="#cfd1d3" stop-opacity="1"/>
+            <stop offset="0.96" stop-color="#979ca2" stop-opacity="1"/>
+        </linearGradient>
+    </defs>
+    <defs id="Filters">
+        <filter id="filter_2.6666667461395">
+            <feGaussianBlur stdDeviation="2.6666667461395"/>
+        </filter>
+    </defs>
+    <g v:mID="0" v:index="1" v:groupContext="foregroundPage">
+        <v:userDefs>
+            <v:ud v:nameU="msvThemeOrder" v:val="VT0(0):26"/>
+        </v:userDefs>
+        <title>GenericINS</title>
+        <v:pageProperties v:drawingScale="0.0393701" v:pageScale="0.0393701" v:drawingUnits="24" v:shadowOffsetX="8.50394"
+                v:shadowOffsetY="-8.50394"/>
+        <g id="shape27-1" v:mID="27" v:groupContext="shape" transform="translate(-26.3786,156.906) rotate(-90)">
+            <title>Tabelle.27</title>
+            <path d="M0 186.25 L63.78 186.25" class="st1"/>
+        </g>
+        <g id="shape28-4" v:mID="28" v:groupContext="shape" transform="translate(-26.3786,93.126) rotate(-90)">
+            <title>Tabelle.28</title>
+            <path d="M0 186.25 L63.78 186.25" class="st1"/>
+        </g>
+        <g id="shape29-7" v:mID="29" v:groupContext="shape" transform="translate(120.536,286.155) rotate(-149.47)">
+            <title>Tabelle.29</title>
+            <path d="M0 186.25 L64.17 186.25" class="st1"/>
+        </g>
+        <g id="shape30-10" v:mID="30" v:groupContext="shape" transform="translate(66.7991,-68.2028) rotate(-29.9816)">
+            <title>Tabelle.30</title>
+            <path d="M0 186.25 L63.81 186.25" class="st1"/>
+        </g>
+        <g id="shape21-13" v:mID="21" v:groupContext="shape" transform="translate(-97.2447,156.906) rotate(-90)">
+            <title>Tabelle.21</title>
+            <path d="M0 186.25 L63.78 186.25" class="st1"/>
+        </g>
+        <g id="shape10-16" v:mID="10" v:groupContext="shape" transform="translate(-59.3426,-36.313) rotate(-29.9816)">
+            <title>Tabelle.10</title>
+            <path d="M0 186.25 L63.81 186.25" class="st1"/>
+        </g>
+        <g id="shape11-19" v:mID="11" v:groupContext="shape" transform="translate(126.806,-100.093) rotate(29.9816)">
+            <title>Tabelle.11</title>
+            <path d="M0 186.25 L63.81 186.25" class="st1"/>
+        </g>
+        <g id="shape12-22" v:mID="12" v:groupContext="shape" transform="translate(-97.2447,93.126) rotate(-90)">
+            <title>Tabelle.12</title>
+            <path d="M0 186.25 L63.78 186.25" class="st1"/>
+        </g>
+        <g id="shape3-25" v:mID="3" v:groupContext="shape" transform="translate(5.38521,-96.6693)">
+            <title>Sechseck.3</title>
+            <desc>AHRS</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st2"/>
+            <text x="8.51" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>AHRS</text>        </g>
+        <g id="shape4-28" v:mID="4" v:groupContext="shape" transform="translate(131.527,-128.559)">
+            <title>Sechseck.4</title>
+            <desc>. . .</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st4"/>
+            <text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>        </g>
+        <g id="shape6-31" v:mID="6" v:groupContext="shape" transform="translate(5.38521,-32.8898)">
+            <title>Sechseck.6</title>
+            <desc>DVL</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st2"/>
+            <text x="14.35" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>DVL</text>        </g>
+        <g id="shape7-34" v:mID="7" v:groupContext="shape" transform="translate(131.527,-1)">
+            <title>Sechseck.7</title>
+            <desc>. . .</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st4"/>
+            <text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>        </g>
+        <g id="shape8-37" v:mID="8" v:groupContext="shape" transform="translate(60.6608,-128.559)">
+            <title>Sechseck.8</title>
+            <desc>GNSS</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st2"/>
+            <text x="8.51" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>GNSS</text>        </g>
+        <g id="shape19-40" v:mID="19" v:groupContext="shape" transform="translate(56.1254,-64.7795)">
+            <title>Tabelle.19</title>
+            <path d="M16.37 129.56 L119.96 129.56 L136.33 157.91 L119.96 186.25 L16.37 186.25 L0 157.91 L16.37 129.56 Z"
+                    class="st5"/>
+        </g>
+        <g id="shape20-44" v:mID="20" v:groupContext="shape" transform="translate(60.6608,-1)">
+            <title>Sechseck.20</title>
+            <desc>IMU</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st2"/>
+            <text x="15.52" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>IMU</text>        </g>
+        <g id="shape22-47" v:mID="22" v:groupContext="shape" transform="translate(48.2901,-83.126)">
+            <title>Tabelle.22</title>
+            <desc>Generic INS</desc>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="76" cy="176.252" width="152" height="20"/>
+            <g id="shadow22-48" v:groupContext="shadow" v:shadowOffsetX="7.2E-08" v:shadowOffsetY="0" v:shadowType="1"
+                    transform="matrix(1,0,0,1,7.2E-08,0)" class="st6">
+                <rect x="0" y="166.252" width="152" height="20" class="st7"/>
+                <text x="24.98" y="181.65" class="st8" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>Generic INS</text>            </g>
+            <rect x="0" y="166.252" width="152" height="20" class="st9"/>
+            <text x="24.98" y="181.65" class="st10" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>Generic INS</text>        </g>
+        <g id="shape25-55" v:mID="25" v:groupContext="shape" transform="translate(186.803,-96.6693)">
+            <title>Sechseck.25</title>
+            <desc>. . .</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st4"/>
+            <text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>        </g>
+        <g id="shape26-58" v:mID="26" v:groupContext="shape" transform="translate(186.803,-32.1811)">
+            <title>Sechseck.26</title>
+            <desc>. . .</desc>
+            <v:userDefs>
+                <v:ud v:nameU="visVersion" v:val="VT0(15):26"/>
+            </v:userDefs>
+            <v:textBlock v:margins="rect(4,4,4,4)" v:tabSpace="42.5197"/>
+            <v:textRect cx="28.3465" cy="157.906" width="56.7" height="56.6929"/>
+            <path d="M44.71 129.56 L11.98 129.56 L-4.39 157.91 L11.98 186.25 L44.71 186.25 L61.08 157.91 L44.71 129.56 Z"
+                    class="st4"/>
+            <text x="18.62" y="162.11" class="st3" v:langID="1031"><v:paragraph v:horizAlign="1"/><v:tabList/>. . .</text>        </g>
+    </g>
 </svg>

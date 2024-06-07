@@ -393,15 +393,15 @@ classdef SensorFusionNoBiasEstimation < handle
 
             % Initial orientation
             phi = 0.5 * initialOrientationRollPitchYaw(1);
-			theta = 0.5 * initialOrientationRollPitchYaw(2);
-			psi = 0.5 * initialOrientationRollPitchYaw(3);
-			c1 = cos(phi);
-			c2 = cos(theta);
-			c3 = cos(psi);
-			s1 = sin(phi);
-			s2 = sin(theta);
-			s3 = sin(psi);
-			obj.x(7:10) = [c1*c2*c3 + s1*s2*s3; s1*c2*c3 - c1*s2*s3; c1*s2*c3 + s1*c2*s3; c1*c2*s3 - s1*s2*c3];
+            theta = 0.5 * initialOrientationRollPitchYaw(2);
+            psi = 0.5 * initialOrientationRollPitchYaw(3);
+            c1 = cos(phi);
+            c2 = cos(theta);
+            c3 = cos(psi);
+            s1 = sin(phi);
+            s2 = sin(theta);
+            s3 = sin(psi);
+            obj.x(7:10) = [c1*c2*c3 + s1*s2*s3; s1*c2*c3 - c1*s2*s3; c1*s2*c3 + s1*c2*s3; c1*c2*s3 - s1*s2*c3];
 
             % Initial velocity
             DCM_b2n = GenericINS.SensorFusionNoBiasEstimation.Cb2n(obj.x(7:10));
