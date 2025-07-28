@@ -26,9 +26,10 @@ Due to the sequential sensor method, sensor data are processed one after the oth
 A built-in state transformation can be used to transform the state estimation to a desired point of interest.
 
 **SRSSUKF**<br>
-A square-root spherical simplex unscented kalman filter is used.
+A square-root spherical simplex unscented Kalman filter is used.
 It is numerically robust and computationally more efficient than other sigma-point Kalman filters.
 In addition, some extensions have been added so that quaternions and angles are handled correctly.
+For a generic MATLAB implementation of the SRSSUKF take a look to [github.com/RobertDamerius/SRSSUKF](https://github.com/RobertDamerius/SRSSUKF).
 
 
 ## Getting Started

@@ -70,7 +70,7 @@ classdef SensorFusionNoBiasEstimation < handle
             docs = [docs '    %%                                 7: roll         [rad]     Initial roll angle.\n'];
             docs = [docs '    %%                                 8: pitch        [rad]     Initial pitch angle.\n'];
             docs = [docs '    %%                                 9: yaw          [rad]     Initial yaw angle.\n'];
-            docs = [docs '    %% initialStdDev              ... 9-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
+            docs = [docs '    %% initialStdDev              ... 9-by-1 standard deviation vector that represents the uncertainty of the initial state. It is better to use larger values than\n'];
             docs = [docs '    %%                                too small values for the filter to converge. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: latitude     [rad]     Initial standard deviation for initial latitude.\n'];
             docs = [docs '    %%                                 2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
@@ -1487,7 +1487,7 @@ classdef SensorFusionNoBiasEstimation < handle
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
         DIM_X  = int32(10);                                                                                       % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusionNoBiasEstimation.DIM_X - int32(1);                                        % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_XS = GenericINS.SensorFusionNoBiasEstimation.DIM_X - int32(1);                                        % Dimension of state vector (x) with respect to uncertainty S.
         DIM_W  = int32(6);                                                                                        % Dimension of process noise (w).
         DIM_L  = GenericINS.SensorFusionNoBiasEstimation.DIM_X + GenericINS.SensorFusionNoBiasEstimation.DIM_W;   % Dimension of augmented state vector.
         DIM_LS = GenericINS.SensorFusionNoBiasEstimation.DIM_XS + GenericINS.SensorFusionNoBiasEstimation.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
@@ -1509,7 +1509,7 @@ classdef SensorFusionNoBiasEstimation < handle
         dcmIMUBody2Sensor; % Direction cosine matrix for rotation from body frame to sensor frame.
         posIMUBody2Sensor; % Position of IMU sensor frame in body frame (b-frame origin to s-frame origin in b-frame coords).
         w0;                % Scalar weighting factor for 0-th sigma point, range: [0;1).
-        wi;                % Weighting factor for other sigma points (calculated from w0)
+        wi;                % Weighting factor for other sigma points (calculated from w0).
         srw0;              % Square root of w0.
         srwi;              % Square root of wi.
     end

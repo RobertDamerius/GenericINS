@@ -85,7 +85,7 @@ classdef SensorFusion < handle
             docs = [docs '    %%                                13: biasGyrX     [rad/s]   Initial angular rate bias around x-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                14: biasGyrY     [rad/s]   Initial angular rate bias around y-axis of IMU sensor frame.\n'];
             docs = [docs '    %%                                15: biasGyrZ     [rad/s]   Initial angular rate bias around z-axis of IMU sensor frame.\n'];
-            docs = [docs '    %% initialStdDev              ... 15-by-1 standard deviation vector that represents the unvertainty of the initial state. It is better to use larger values than\n'];
+            docs = [docs '    %% initialStdDev              ... 15-by-1 standard deviation vector that represents the uncertainty of the initial state. It is better to use larger values than\n'];
             docs = [docs '    %%                                too small values for the filter to converge. The elements are as follows:\n'];
             docs = [docs '    %%                                 1: latitude     [rad]     Initial standard deviation for initial latitude.\n'];
             docs = [docs '    %%                                 2: longitude    [rad]     Initial standard deviation for initial longitude.\n'];
@@ -1560,7 +1560,7 @@ classdef SensorFusion < handle
     properties(Constant,Access=private)
         % Fixed dimension for generic INS problem: DO NOT CHANGE!
         DIM_X  = int32(16);                                                       % Dimension of state vector (x).
-        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to unvertainty S.
+        DIM_XS = GenericINS.SensorFusion.DIM_X - int32(1);                        % Dimension of state vector (x) with respect to uncertainty S.
         DIM_W  = int32(12);                                                       % Dimension of process noise (w).
         DIM_L  = GenericINS.SensorFusion.DIM_X + GenericINS.SensorFusion.DIM_W;   % Dimension of augmented state vector.
         DIM_LS = GenericINS.SensorFusion.DIM_XS + GenericINS.SensorFusion.DIM_W;  % Dimension of augmented state vector with respect to uncertainty S.
@@ -1582,7 +1582,7 @@ classdef SensorFusion < handle
         dcmIMUBody2Sensor; % Direction cosine matrix for rotation from body frame to sensor frame.
         posIMUBody2Sensor; % Position of IMU sensor frame in body frame (b-frame origin to s-frame origin in b-frame coords).
         w0;                % Scalar weighting factor for 0-th sigma point, range: [0;1).
-        wi;                % Weighting factor for other sigma points (calculated from w0)
+        wi;                % Weighting factor for other sigma points (calculated from w0).
         srw0;              % Square root of w0.
         srwi;              % Square root of wi.
     end

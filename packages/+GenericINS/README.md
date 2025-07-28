@@ -1,9 +1,8 @@
 # Overview
 The Generic Inertial Navigation System (INS) uses a square-root spherical simplex unscented Kalman filter (SRSSUKF) to estimate the navigation state.
-`SRSSUKF.m` is a MATLAB class implementation of the SRSSUKF that can be used for any state estimation problem.
-The actual sensor fusion algorithm is implemented in the MATLAB classes `SensorFusion.m` and `SensorFusionNoBiasEstimation.m`. These classes re-implement the SRSSUKF algorithm for the Generic INS problem,
-that is, the SRSSUKF MATLAB class is not required but it is preserved in the directory for completeness. The `SensorFusion.m` class estimates the navigation state. The `SensorFusionNoBiasEstimation.m`
-class excludes estimation of the inertial sensor biases.
+The actual sensor fusion algorithm is implemented in the MATLAB classes `SensorFusion.m` and `SensorFusionNoBiasEstimation.m`.
+The `SensorFusion.m` class estimates the navigation state.
+The `SensorFusionNoBiasEstimation.m` class excludes estimation of the inertial sensor biases.
 
 
 The sensor fusion estimate the state vector containing:
